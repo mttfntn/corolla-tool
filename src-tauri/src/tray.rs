@@ -25,6 +25,7 @@ pub struct TrayItems {
 }
 
 impl TrayItems {
+    /// Updates the On and quality check marks.
     pub fn show(&self, enabled: bool, quality: u8) {
         let _ = self.enabled.set_checked(enabled);
         for (i, item) in self.quality.iter().enumerate() {
@@ -32,6 +33,7 @@ impl TrayItems {
         }
     }
 
+    /// Updates the "Start at login" check mark.
     pub fn show_login(&self, on: bool) {
         let _ = self.login.set_checked(on);
     }
@@ -60,6 +62,7 @@ pub fn open_settings(app: &AppHandle) {
     });
 }
 
+/// Creates the tray icon and its menu, with check marks set from `initial`.
 pub fn build(app: &AppHandle, initial: &Settings) -> tauri::Result<()> {
     let enabled = CheckMenuItem::with_id(app, "enabled", "Enabled", true, initial.enabled, None::<&str>)?;
     let autostart_on = app.autolaunch().is_enabled().unwrap_or(false);

@@ -98,6 +98,7 @@ pub struct Controller {
 }
 
 impl Controller {
+    /// Starts hidden and switched on; main.rs then applies the saved on/off.
     pub fn new(app: AppHandle) -> Arc<Self> {
         Arc::new(Self {
             app,
@@ -111,6 +112,9 @@ impl Controller {
         self.app.get_webview_window("wheel")
     }
 
+    /// Handles the gesture thread's signals: Arm shows the invisible catcher
+    /// under the cursor (only when switched on), Follow moves it, Expired and
+    /// Release hide it again unless files arrived.
     pub fn on_signal(self: &Arc<Self>, signal: Signal) {
         match signal {
             Signal::Arm { x, y } => {
@@ -162,6 +166,7 @@ impl Controller {
         }
     }
 
+    /// Files reached the catcher: work out the circles for them and open the wheel.
     pub fn on_drag_enter(&self, paths: Vec<PathBuf>) {
         {
             let phase = self.phase.lock().unwrap();
@@ -204,6 +209,7 @@ impl Controller {
         }
     }
 
+    /// The cursor left the window: clear the highlighted circle.
     pub fn on_drag_leave(&self) {
         let changed = {
             let mut phase = self.phase.lock().unwrap();
@@ -220,6 +226,8 @@ impl Controller {
         }
     }
 
+    /// Files dropped: queue them if they landed on a usable circle, then close
+    /// the wheel (or switch it to progress).
     pub fn on_drop(self: &Arc<Self>, paths: Vec<PathBuf>, x: f64, y: f64) {
         let chosen = self.circle_at(x, y).flatten().and_then(|i| {
             match &*self.phase.lock().unwrap() {
@@ -283,6 +291,7 @@ impl Controller {
     }
 }
 
+/// Centres the window on the cursor, kept inside the cursor's monitor.
 fn place_centered(w: &WebviewWindow, cursor_x: i32, cursor_y: i32) {
     #[cfg(target_os = "macos")]
     let (cursor_x, cursor_y) = {

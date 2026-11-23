@@ -78,6 +78,8 @@ pub struct Queue {
 }
 
 impl Queue {
+    /// Starts one worker thread per CPU core minus one (1 to 8), all waiting
+    /// for jobs.
     pub fn start(tools: Arc<Tools>, quality: Arc<engines::QualitySetting>) -> Arc<Self> {
         let queue = Arc::new(Self {
             state: Mutex::default(),
@@ -99,11 +101,15 @@ impl Queue {
         queue
     }
 
+    /// `on_change` runs after every change, for the wheel's progress;
+    /// `on_finish` runs once when a batch is done, with its report.
     pub fn set_listeners(&self, on_change: Listener, on_finish: Finisher) {
         *self.on_change.lock().unwrap() = Some(on_change);
         *self.on_finish.lock().unwrap() = Some(on_finish);
     }
 
+    /// Adds the dropped files. Files already in the target format are counted
+    /// as skipped, not converted; a combined PDF is one job for all its files.
     pub fn enqueue(&self, paths: Vec<PathBuf>, action: Action) {
         {
             let mut state = self.state.lock().unwrap();

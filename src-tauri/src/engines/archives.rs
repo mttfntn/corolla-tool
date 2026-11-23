@@ -29,6 +29,9 @@ fn pack_with_7z(run: &Run, tool: &Path, kind: &str, contents: &Path, output: &Pa
     run_tool(run, &mut command)
 }
 
+/// Unpacks the archive into a temp folder with 7-Zip, then packs that folder
+/// as the target (RAR with WinRAR's `rar`). 7-Zip drops `../` and absolute
+/// paths, so nothing is written outside the temp folder.
 pub fn convert(run: &Run) -> Result<(), String> {
     let tool = run.tools.sevenzip.as_ref().ok_or("7-Zip is missing")?;
     // Inside `work`'s sibling: `work` must end up holding only the final file.

@@ -1,3 +1,6 @@
+//! macOS: reads the left button, the Command key and the cursor position
+//! from Core Graphics, for the Cmd+drag gesture.
+
 use super::Sample;
 use std::ffi::c_void;
 

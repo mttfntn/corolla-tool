@@ -84,6 +84,7 @@ impl Settings {
     }
 }
 
+/// Where settings live: `settings.json` in the app's config folder.
 pub fn path_in(directory: &Path) -> PathBuf {
     directory.join("settings.json")
 }
@@ -118,14 +119,18 @@ pub struct Store {
 }
 
 impl Store {
+    /// Holds `initial` in memory; `update` writes every change to `path`.
     pub fn new(path: PathBuf, initial: Settings) -> Self {
         Self { path, current: Mutex::new(initial) }
     }
 
+    /// A copy of the current settings.
     pub fn get(&self) -> Settings {
         self.current.lock().unwrap().clone()
     }
 
+    /// Changes the settings and saves them at once. A failed save is logged,
+    /// and the change still applies until Corolla quits.
     pub fn update(&self, change: impl FnOnce(&mut Settings)) {
         let mut current = self.current.lock().unwrap();
         change(&mut current);
@@ -135,11 +140,13 @@ impl Store {
     }
 }
 
+/// Settings window: the current settings.
 #[tauri::command]
 pub fn get_settings(store: State<Arc<Store>>) -> Settings {
     store.get()
 }
 
+/// Settings window: the defaults, for "Reset".
 #[tauri::command]
 pub fn default_settings() -> Settings {
     Settings::default()
@@ -156,6 +163,8 @@ pub fn save_settings(app: AppHandle, settings: Settings) -> Settings {
     settings
 }
 
+/// Settings window: every circle of a family, in the user's order. HEIC is
+/// left out when nothing on this machine can write it.
 #[tauri::command]
 pub fn catalog(family: String, store: State<Arc<Store>>, tools_found: State<Arc<engines::Tools>>) -> Vec<Item> {
     let settings = store.get();
@@ -173,11 +182,13 @@ pub fn ring_for(count: usize) -> Ring {
     wheel::ring(count)
 }
 
+/// Settings window: whether Corolla starts at login.
 #[tauri::command]
 pub fn get_login(app: AppHandle) -> bool {
     app.autolaunch().is_enabled().unwrap_or(false)
 }
 
+/// Settings window: switches start at login on or off, and updates the tray.
 #[tauri::command]
 pub fn set_login(app: AppHandle, on: bool) -> Result<bool, String> {
     let autolaunch = app.autolaunch();

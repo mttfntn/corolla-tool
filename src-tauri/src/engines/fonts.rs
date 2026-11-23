@@ -37,6 +37,7 @@ pub fn is_variable(sfnt: &[u8]) -> bool {
     ttf_parser::Face::parse(sfnt, 0).is_ok_and(|face| face.is_variable())
 }
 
+/// FontForge installed in its usual places, used when none is bundled.
 pub fn find_fontforge() -> Option<PathBuf> {
     let known = [
         "C:\\Program Files\\FontForgeBuilds\\bin\\fontforge.exe",
@@ -178,6 +179,8 @@ fn with_fontforge(run: &Run, sfnt: &[u8], from: Outlines, to: Outlines) -> Resul
     Ok(converted)
 }
 
+/// Unwraps WOFF/WOFF2, redraws the outlines with FontForge only when going
+/// between TrueType (TTF) and CFF (OTF) curves, then wraps the result.
 pub fn convert(run: &Run) -> Result<(), String> {
     let bytes = std::fs::read(run.source).map_err(|e| format!("Can't read the font: {e}"))?;
     let sfnt = unwrap(run.from, bytes)?;

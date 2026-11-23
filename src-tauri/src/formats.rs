@@ -18,6 +18,7 @@ pub struct Matrix {
     pub formats: HashMap<String, Format>,
 }
 
+/// formats.json, compiled into the app and parsed once.
 pub fn matrix() -> &'static Matrix {
     static MATRIX: OnceLock<Matrix> = OnceLock::new();
     MATRIX.get_or_init(|| {

@@ -19,6 +19,7 @@ const MAX_WIDTH_EMU: u64 = 5_486_400;
 const MAX_HEIGHT_EMU: u64 = 8_229_600;
 const EMU_PER_PIXEL: u64 = 9_525;
 
+/// Escapes text for Word's XML and drops characters XML forbids.
 pub fn escape(text: &str) -> String {
     text.chars()
         .filter(|c| matches!(*c, '\t' | '\n' | '\r') || (*c >= ' ' && *c != '\u{FFFE}' && *c != '\u{FFFF}'))
@@ -75,6 +76,7 @@ pub fn fit_emu(width: u32, height: u32) -> (u64, u64) {
     ((w as f64 * shrink) as u64, (h as f64 * shrink) as u64)
 }
 
+/// A Word file holding one picture, scaled to fit the page.
 pub fn write_image(output: &Path, name: &str, data: &[u8], width: u32, height: u32) -> Result<(), String> {
     let (cx, cy) = fit_emu(width, height);
     let document = format!(
@@ -83,6 +85,7 @@ pub fn write_image(output: &Path, name: &str, data: &[u8], width: u32, height: u
     write_package(output, &document, Some((name, data)))
 }
 
+/// A Word file with one paragraph per line of text.
 pub fn write_text(output: &Path, text: &str) -> Result<(), String> {
     let mut document = String::from(DOC_OPEN);
     for line in text.lines() {

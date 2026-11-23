@@ -1,3 +1,5 @@
+/* The Settings window: sidebar of format families, the wheel preview, and the
+   circle list with its drag-to-reorder and on/off switches. */
 :root {
   --bg: #141414;
   --panel: #1f1f1f;

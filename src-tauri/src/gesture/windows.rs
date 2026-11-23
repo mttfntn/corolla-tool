@@ -1,3 +1,6 @@
+//! Windows: reads the primary mouse button (the right one when the buttons are
+//! swapped), the Ctrl key and the cursor position, for the Ctrl+drag gesture.
+
 use super::Sample;
 use windows_sys::Win32::Foundation::POINT;
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::{

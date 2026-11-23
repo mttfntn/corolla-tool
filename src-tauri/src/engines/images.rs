@@ -34,6 +34,8 @@ fn svg_tree(path: &Path) -> Result<usvg::Tree, String> {
     parse_svg(&data, path.parent())
 }
 
+/// Parses SVG with the system's fonts; `base` is where relative image links
+/// are looked up.
 pub fn parse_svg(data: &[u8], base: Option<&Path>) -> Result<usvg::Tree, String> {
     let options = usvg::Options {
         resources_dir: base.map(PathBuf::from),
@@ -47,6 +49,8 @@ pub fn parse_svg(data: &[u8], base: Option<&Path>) -> Result<usvg::Tree, String>
 const MIN_RASTER_EDGE: f32 = 1024.0;
 const MAX_RASTER_EDGE: f32 = 16384.0;
 
+/// Renders SVG to PNG, scaling small drawings up so the longest edge is at
+/// least 1024 px (and at most 16384 px).
 pub fn render_tree_to_png(tree: &usvg::Tree, output: &Path) -> Result<(), String> {
     let size = tree.size();
     let longest = size.width().max(size.height()).max(1.0);
