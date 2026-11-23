@@ -80,7 +80,62 @@ fn clear_work(run: &Run) {
     }
 }
 
+/// Text that only appears in a file of this format when it holds a mesh.
+/// Assimp and Blender both write a valid but empty file, and exit successfully,
+/// when the source has no geometry, such as a broken OBJ.
+fn geometry_markers(target: &str) -> &'static [&'static [u8]] {
+    match target {
+        "obj" => &[b"\nf "],
+        "gltf" | "glb" => &[b"\"meshes\""],
+        "dae" => &[b"<triangles", b"<polylist", b"<polygons"],
+        "fbx" => &[b"PolygonVertexIndex"],
+        "stl" => &[b"facet"], // ASCII STL; binary STL is checked by its triangle count
+        _ => &[],
+    }
+}
+
+/// True if the file holds at least one face. Reads in pieces and stops at the
+/// first marker, so a large model costs about one read of its first mesh.
+pub fn has_geometry(target: &str, path: &Path) -> Result<bool, String> {
+    use std::io::Read;
+    let mut file = std::fs::File::open(path).map_err(|e| format!("Can't read the output: {e}"))?;
+    let mut head = [0u8; 84];
+    let read = file.read(&mut head).map_err(|e| e.to_string())?;
+    if target == "stl" && read == 84 && !head.starts_with(b"solid ") {
+        return Ok(u32::from_le_bytes([head[80], head[81], head[82], head[83]]) > 0);
+    }
+    let markers = geometry_markers(target);
+    if markers.is_empty() {
+        return Ok(true);
+    }
+    let longest = markers.iter().map(|m| m.len()).max().unwrap_or(0);
+    // A newline in front, so an OBJ whose first line is a face still matches "\nf ".
+    let mut window = vec![b'\n'];
+    window.extend_from_slice(&head[..read]);
+    let mut chunk = vec![0u8; 1 << 20];
+    loop {
+        if markers.iter().any(|m| window.windows(m.len()).any(|w| w == *m)) {
+            return Ok(true);
+        }
+        let n = file.read(&mut chunk).map_err(|e| e.to_string())?;
+        if n == 0 {
+            return Ok(false);
+        }
+        let keep = window.len().min(longest);
+        window.drain(..window.len() - keep);
+        window.extend_from_slice(&chunk[..n]);
+    }
+}
+
 pub fn convert(run: &Run) -> Result<(), String> {
+    convert_any(run)?;
+    if !has_geometry(run.target, run.output)? {
+        return Err("This file holds no 3D geometry".into());
+    }
+    Ok(())
+}
+
+fn convert_any(run: &Run) -> Result<(), String> {
     if run.tools.blender.is_some() && blender_handles(run.from, run.target) {
         match with_blender(run) {
             Ok(()) => return Ok(()),
