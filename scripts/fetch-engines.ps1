@@ -17,8 +17,13 @@ function Get-File($url, $name) {
     $path
 }
 
+# GitHub's API allows few anonymous requests per address, which shared CI machines
+# use up; CI passes its token in GITHUB_TOKEN. Without it, requests stay anonymous.
+$apiHeaders = @{ "User-Agent" = "corolla-build" }
+if ($env:GITHUB_TOKEN) { $apiHeaders["Authorization"] = "Bearer $env:GITHUB_TOKEN" }
+
 function Get-ReleaseAsset($repo, $pattern) {
-    $release = Invoke-RestMethod "https://api.github.com/repos/$repo/releases/latest" -Headers @{ "User-Agent" = "corolla-build" }
+    $release = Invoke-RestMethod "https://api.github.com/repos/$repo/releases/latest" -Headers $apiHeaders
     $asset = $release.assets | Where-Object { $_.name -match $pattern } | Select-Object -First 1
     if (-not $asset) { throw "No asset matching $pattern in $repo $($release.tag_name)" }
     Get-File $asset.browser_download_url $asset.name
@@ -66,7 +71,7 @@ if (-not (Test-Path "$out\pdfium.dll")) {
 }
 
 if (-not (Test-Path "$out\assimp.exe")) {
-    $release = Invoke-RestMethod "https://api.github.com/repos/assimp/assimp/releases/latest" -Headers @{ "User-Agent" = "corolla-build" }
+    $release = Invoke-RestMethod "https://api.github.com/repos/assimp/assimp/releases/latest" -Headers $apiHeaders
     $zip = Get-File $release.zipball_url "assimp-$($release.tag_name).zip"
     $dir = New-Clean "assimp"
     tar.exe -xf $zip -C $dir

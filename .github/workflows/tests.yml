@@ -78,6 +78,8 @@ jobs:
       # try in case a server cuts a large download off.
       - name: Fetch the engines
         shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           for ($attempt = 1; $attempt -le 2; $attempt++) {
             powershell -NoProfile -ExecutionPolicy Bypass -File scripts/fetch-engines.ps1
@@ -138,6 +140,8 @@ jobs:
           brew install cmake ffmpeg imagemagick fontforge || (sleep 30 && brew install cmake ffmpeg imagemagick fontforge)
 
       - name: Fetch the engines
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: bash scripts/fetch-engines.sh || (sleep 30 && bash scripts/fetch-engines.sh)
 
       - name: Matrix with Homebrew's FFmpeg, ImageMagick and FontForge

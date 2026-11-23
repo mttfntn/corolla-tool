@@ -13,8 +13,18 @@ mkdir -p "$out" "$cache"
 arch="$(uname -m)"   # arm64 or x86_64
 [ "$arch" = "arm64" ] && pdfium_arch="arm64" || pdfium_arch="x64"
 
+# GitHub's API allows few anonymous requests per address, which shared CI machines
+# use up; CI passes its token in GITHUB_TOKEN. Without it, requests stay anonymous.
+api() { # url
+  if [ -n "${GITHUB_TOKEN:-}" ]; then
+    curl -fsSL --retry 3 -H "Authorization: Bearer $GITHUB_TOKEN" "$1"
+  else
+    curl -fsSL --retry 3 "$1"
+  fi
+}
+
 latest_asset() { # repo, regex
-  curl -fsSL "https://api.github.com/repos/$1/releases/latest" \
+  api "https://api.github.com/repos/$1/releases/latest" \
     | grep -o '"browser_download_url": *"[^"]*"' | cut -d'"' -f4 | grep -E "$2" | head -1
 }
 
@@ -45,7 +55,7 @@ if [ ! -x "$out/ffmpeg" ]; then
 fi
 
 if [ ! -x "$out/assimp" ]; then
-  tag="$(curl -fsSL https://api.github.com/repos/assimp/assimp/releases/latest | grep -o '"tag_name": *"[^"]*"' | cut -d'"' -f4)"
+  tag="$(api https://api.github.com/repos/assimp/assimp/releases/latest | grep -o '"tag_name": *"[^"]*"' | cut -d'"' -f4)"
   curl -fL --retry 3 -o "$cache/assimp-mac.tar.gz" "https://github.com/assimp/assimp/archive/refs/tags/$tag.tar.gz"
   rm -rf "$cache/assimp-mac" && mkdir -p "$cache/assimp-mac"
   tar -xzf "$cache/assimp-mac.tar.gz" -C "$cache/assimp-mac" --strip-components=1
