@@ -166,6 +166,39 @@ mod tests {
         }
     }
 
+    fn geometry_of(target: &str, bytes: &[u8]) -> bool {
+        let dir = super::super::WorkDir::new().unwrap();
+        let path = dir.0.join(format!("model.{target}"));
+        std::fs::write(&path, bytes).unwrap();
+        has_geometry(target, &path).unwrap()
+    }
+
+    #[test]
+    fn empty_models_are_told_apart_from_real_ones() {
+        let mut stl = vec![0u8; 80];
+        stl.extend_from_slice(&0u32.to_le_bytes());
+        assert!(!geometry_of("stl", &stl), "binary STL with no triangles");
+        stl[80] = 1;
+        stl.extend_from_slice(&[0u8; 50]);
+        assert!(geometry_of("stl", &stl));
+        assert!(geometry_of("stl", b"solid x\nfacet normal 0 0 1\nendsolid x\n"));
+        assert!(!geometry_of("stl", b"solid x\nendsolid x\n"));
+        assert!(!geometry_of("obj", b"# nothing\nv 0 0 0\n"));
+        assert!(geometry_of("obj", b"f 1 2 3\n"), "a face on the first line");
+        assert!(geometry_of("gltf", br#"{"asset":{},"meshes":[{}]}"#));
+        assert!(!geometry_of("gltf", br#"{"asset":{}}"#));
+        assert!(!geometry_of("dae", b"<COLLADA><library_geometries/></COLLADA>"));
+        assert!(geometry_of("fbx", b"Kaydara FBX Binary  \0...PolygonVertexIndex..."));
+    }
+
+    #[test]
+    fn a_marker_split_across_two_reads_is_found() {
+        let mut obj = b"v 0 0 0\n".repeat((1 << 20) / 8);
+        obj.truncate((1 << 20) + 84 - 2); // "\nf" ends the first piece, " 1 2 3" starts the next
+        obj.extend_from_slice(b"\nf 1 2 3\n");
+        assert!(geometry_of("obj", &obj));
+    }
+
     #[test]
     fn blender_only_takes_fbx_conversions_it_can_do() {
         assert!(blender_handles("fbx", "glb"));

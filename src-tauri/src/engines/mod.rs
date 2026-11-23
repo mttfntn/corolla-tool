@@ -559,3 +559,5 @@ pub fn require_output(path: &Path) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod abuse_tests;
