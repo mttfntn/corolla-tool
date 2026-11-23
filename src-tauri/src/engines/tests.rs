@@ -928,3 +928,67 @@ fn favicons_hold_every_size_square_and_small() {
     let from_svg = convert_to(svg, "ico", &tools, &off).unwrap();
     signature::check_file("ico", &from_svg).unwrap();
 }
+
+/// Behaviour probe for comparing two versions: converts every pair in the matrix
+/// and writes one line per pair (offered or not, the outcome, and the output's
+/// size and SHA-256) to the file in COROLLA_PROBE_OUT. Uses only helpers that
+/// older versions of this file also have.
+#[test]
+#[ignore = "behaviour probe; set COROLLA_PROBE_OUT"]
+fn behaviour_probe() {
+    use std::io::Write as _;
+    let Ok(out) = std::env::var("COROLLA_PROBE_OUT") else { return };
+    let tools = Tools::locate(&[bundled_dir()]);
+    let dir = std::env::temp_dir().join(format!("corolla-probe-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let mut samples = make_samples(&tools, &dir);
+    samples.insert("step".into(), fixture("sample.step"));
+    samples.insert("ttf".into(), fixture("font-static.ttf"));
+    samples.insert("otf".into(), fixture("font-cff.otf"));
+    let matrix = formats::matrix();
+    let mut names: Vec<&String> = matrix.formats.keys().collect();
+    names.sort();
+    let mut lines = Vec::new();
+    for from in names {
+        let mut targets = matrix.formats[from].targets.clone();
+        targets.sort();
+        for target in targets {
+            let offered = can_convert(&tools, from, &target);
+            let outcome = if !offered {
+                "hidden".to_string()
+            } else {
+                match sample_for(from, &mut samples, &tools, &dir) {
+                    None => "no-sample".to_string(),
+                    Some(sample) => {
+                        let folder = dir.join(format!("{from}-to-{target}"));
+                        std::fs::create_dir_all(&folder).unwrap();
+                        let source = folder.join(sample.file_name().unwrap());
+                        std::fs::copy(&sample, &source).unwrap();
+                        for extension in ["bin", "mtl"] {
+                            let companion = sample.with_extension(extension);
+                            if companion.exists() {
+                                std::fs::copy(&companion, folder.join(companion.file_name().unwrap())).unwrap();
+                            }
+                        }
+                        match convert_to(source, &target, &tools, &AtomicBool::new(false)) {
+                            Ok(path) => {
+                                let bytes = std::fs::read(&path).unwrap_or_default();
+                                let mut hash = std::collections::hash_map::DefaultHasher::new();
+                                std::hash::Hash::hash(&bytes, &mut hash);
+                                format!("ok size={} hash={:016x}", bytes.len(), std::hash::Hasher::finish(&hash))
+                            }
+                            Err(error) => format!("error {}", error.lines().next().unwrap_or("")),
+                        }
+                    }
+                }
+            };
+            lines.push(format!("{from} -> {target}: {outcome}"));
+        }
+    }
+    let mut file = std::fs::File::create(out).unwrap();
+    for line in &lines {
+        writeln!(file, "{line}").unwrap();
+    }
+    let _ = std::fs::remove_dir_all(&dir);
+}
