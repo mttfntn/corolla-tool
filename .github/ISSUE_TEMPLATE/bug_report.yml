@@ -1,0 +1,63 @@
+name: Bug report
+description: Something does not work as described in the README
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! Please check the [README](https://github.com/mttfntn/corolla-tool#readme) first, including the [known limits](https://github.com/mttfntn/corolla-tool#known-limits) and, on a Mac, [what to install](https://github.com/mttfntn/corolla-tool#macos-what-to-install), and whether an issue for the same problem already exists. Security problems: please use [private reporting](https://github.com/mttfntn/corolla-tool/security/advisories/new) instead.
+
+  - type: input
+    id: version
+    attributes:
+      label: Corolla version
+      description: The first line of the log, "Corolla X.Y.Z started" (tray icon > Open log folder > corolla.log).
+      placeholder: "0.3.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: System
+      options:
+        - Windows
+        - macOS
+    validations:
+      required: true
+
+  - type: input
+    id: os_version
+    attributes:
+      label: System version
+      description: On a Mac, also what you installed with Homebrew (FFmpeg, ImageMagick, ...).
+      placeholder: "Windows 11 24H2 / macOS 26.1 with ffmpeg and imagemagick"
+    validations:
+      required: true
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: Which files (type, and roughly how many) you dropped on which circle, what you saw, and what you expected instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Select three .heic photos in the Finder
+        2. Start dragging, press Cmd
+        3. Drop on JPG
+        4. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: log
+    attributes:
+      label: The end of the log
+      description: The last lines of corolla.log (tray icon > Open log folder). Remove anything private, such as folder names.
+      render: shell

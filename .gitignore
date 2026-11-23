@@ -4,3 +4,11 @@ src-tauri/gen/
 src-tauri/binaries/
 build-cache/
 tests/out/
+dist/
+.DS_Store
+__pycache__/
+# local editor and assistant setup, not part of the project
+.vscode/
+.idea/
+.claude/
+.mcp.json

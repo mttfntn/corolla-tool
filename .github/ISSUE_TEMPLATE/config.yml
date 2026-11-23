@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: User guide
+    url: https://github.com/mttfntn/corolla-tool#readme
+    about: How to install Corolla, use the wheel, and what to install on a Mac.
+  - name: Report a security problem privately
+    url: https://github.com/mttfntn/corolla-tool/security/advisories/new
+    about: Please do not open a public issue for security problems.
