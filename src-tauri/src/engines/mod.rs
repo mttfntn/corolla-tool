@@ -145,6 +145,9 @@ pub struct Tools {
 
 const EXE: &str = std::env::consts::EXE_SUFFIX;
 
+/// The pictures macOS's sips reads and writes by itself (images.rs).
+const SIPS_FORMATS: [&str; 5] = ["jpg", "png", "tiff", "bmp", "heic"];
+
 /// Homebrew's folders (Apple silicon, Intel). An app opened from the Finder
 /// doesn't get the shell's PATH, so tools installed with Homebrew would
 /// otherwise never be found.
@@ -287,9 +290,20 @@ impl Tools {
             })
     }
 
-    /// Without ImageMagick, FFmpeg writes WebP and AVIF images (images.rs).
-    fn image_target_ok(&self, target: &str) -> bool {
-        self.magick.is_some() || !matches!(target, "webp" | "avif") || self.ffmpeg_writes(target)
+    /// Whether a picture can go from `from` to `to`. ImageMagick does them all.
+    /// Without it (macOS), images.rs has sips do its own formats and FFmpeg the
+    /// rest; a PDF page is a JPEG, and an SVG is drawn to PNG first.
+    fn picture_ok(&self, from: &str, to: &str) -> bool {
+        if self.magick.is_some() {
+            return true;
+        }
+        if self.sips.is_none() {
+            return false;
+        }
+        let from = if from == "svg" { "png" } else { from };
+        let to = if to == "pdf" { "jpg" } else { to };
+        let sips = |format: &str| SIPS_FORMATS.contains(&format);
+        (sips(from) && sips(to)) || self.ffmpeg_writes(to)
     }
 }
 
@@ -314,10 +328,10 @@ pub fn can_convert(tools: &Tools, from: &str, to: &str) -> bool {
             ("svg", "png" | "pdf") => true,
             ("jpg" | "png", "docx") | ("jpg", "pdf") => true,
             // Only macOS's sips can write HEIC: the ImageMagick build has no encoder.
-            (_, "heic") => tools.sips.is_some() && tools.has_image_tool(),
+            (_, "heic") => tools.sips.is_some() && tools.picture_ok(from, to),
             // Making icons and picking the largest size in one needs ImageMagick.
             ("ico", _) | (_, "ico") => tools.magick.is_some(),
-            _ => tools.has_image_tool() && tools.image_target_ok(to),
+            _ => tools.picture_ok(from, to),
         },
         _ => false,
     }
@@ -335,8 +349,8 @@ pub fn can_process(tools: &Tools, from: &str, op: &Op) -> bool {
             "svg" | "ico" => false,
             // Radiance files have only one kind of compression, always on.
             "hdr" if compress => false,
-            "heic" => tools.sips.is_some() && tools.has_image_tool(),
-            _ => tools.has_image_tool() && tools.image_target_ok(from),
+            "heic" => tools.sips.is_some() && tools.picture_ok(from, from),
+            _ => tools.picture_ok(from, from),
         },
         _ => false,
     }
@@ -344,7 +358,7 @@ pub fn can_process(tools: &Tools, from: &str, op: &Op) -> bool {
 
 /// JPEGs go in as they are; anything else needs converting first.
 pub fn can_combine(tools: &Tools, formats_in_drag: &[String]) -> bool {
-    tools.has_image_tool() || formats_in_drag.iter().all(|f| f == "jpg")
+    formats_in_drag.iter().all(|f| f == "jpg" || tools.picture_ok(f, "jpg"))
 }
 
 /// Everything an engine needs for one job. Engines write into `work`, a private
