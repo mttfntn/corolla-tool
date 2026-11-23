@@ -1,0 +1,228 @@
+# Every push and pull request: unit tests and clippy on Windows and macOS, then the real
+# engines on both, and the installers built and checked.
+# Windows: the full engine suite with every bundled engine, then the NSIS installer.
+# macOS: the conversion matrix in three setups (with Homebrew's FFmpeg, ImageMagick and
+# FontForge; with FFmpeg only; with only what the app carries), then the DMG.
+# A pushed version tag (vX.Y.Z) also checks the tag against the version and publishes a
+# GitHub release with both installers. Files pass between jobs only for a tag, kept 1 day.
+name: tests
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+env:
+  CARGO_TERM_COLOR: never
+  MANIFEST: src-tauri/Cargo.toml
+
+jobs:
+  unit:
+    name: unit tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      # The bundle settings list these folders; the engines aren't needed for unit tests.
+      - name: Empty engine folders
+        shell: bash
+        run: mkdir -p src-tauri/binaries/windows src-tauri/binaries/macos
+
+      - name: Clippy
+        run: cargo clippy --manifest-path ${{ env.MANIFEST }} --all-targets -- -D warnings
+
+      - name: Unit tests
+        run: cargo test --manifest-path ${{ env.MANIFEST }}
+
+  windows:
+    name: engines and installer (Windows)
+    needs: unit
+    runs-on: windows-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # Downloads retry inside the script (curl --retry 3); the whole fetch gets a second
+      # try in case a server cuts a large download off.
+      - name: Fetch the engines
+        shell: pwsh
+        run: |
+          for ($attempt = 1; $attempt -le 2; $attempt++) {
+            powershell -NoProfile -ExecutionPolicy Bypass -File scripts/fetch-engines.ps1
+            if ($LASTEXITCODE -eq 0) { exit 0 }
+            Write-Host "fetch-engines failed (attempt $attempt), retrying in 30 s"
+            Start-Sleep -Seconds 30
+          }
+          exit 1
+
+      - name: Engine tests (every pair, hostile input, images, fonts, STEP)
+        run: cargo test --manifest-path ${{ env.MANIFEST }} -- --ignored --test-threads=4
+
+      - name: Build the installer
+        shell: bash
+        run: |
+          npm ci
+          npx tauri build --bundles nsis
+
+      - name: Check the installer
+        shell: bash
+        run: python tools/check_package.py src-tauri/target/release/bundle/nsis/*-setup.exe
+
+      - name: Name the installer for the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          mkdir dist
+          cp src-tauri/target/release/bundle/nsis/*-setup.exe "dist/Corolla-${GITHUB_REF_NAME#v}-windows-x64-setup.exe"
+
+      - uses: actions/upload-artifact@v4
+        if: startsWith(github.ref, 'refs/tags/v')
+        with:
+          name: windows
+          path: dist/*
+          retention-days: 1
+
+  macos:
+    name: engines and DMG (macOS)
+    needs: unit
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # What the README tells Mac users to install. Homebrew retries its own downloads.
+      - name: Install FFmpeg, ImageMagick and FontForge
+        run: |
+          brew install cmake ffmpeg imagemagick fontforge || (sleep 30 && brew install cmake ffmpeg imagemagick fontforge)
+
+      - name: Fetch the engines
+        run: bash scripts/fetch-engines.sh || (sleep 30 && bash scripts/fetch-engines.sh)
+
+      - name: Matrix with Homebrew's FFmpeg, ImageMagick and FontForge
+        run: cargo test --manifest-path ${{ env.MANIFEST }} every_pair -- --ignored --nocapture
+
+      - name: Matrix with FFmpeg but no ImageMagick (sips does pictures)
+        env:
+          COROLLA_TEST_WITHOUT: magick
+        run: cargo test --manifest-path ${{ env.MANIFEST }} every_pair -- --ignored --nocapture
+
+      - name: Matrix with only what the app carries
+        env:
+          COROLLA_TEST_WITHOUT: ffmpeg,magick,fontforge
+        run: cargo test --manifest-path ${{ env.MANIFEST }} every_pair -- --ignored --nocapture
+
+      # STEP needs FreeCAD on a Mac, too large to install here: Windows covers STEP.
+      - name: Other engine tests (hostile input, images, fonts)
+        run: >
+          cargo test --manifest-path ${{ env.MANIFEST }} -- --ignored --test-threads=4
+          --skip every_pair --skip step_mesh
+
+      - name: Build the DMG
+        run: |
+          npm ci
+          npx tauri build
+
+      - name: Check the DMG
+        run: python3 tools/check_package.py src-tauri/target/release/bundle/dmg/*.dmg
+
+      - name: Name the DMG for the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          mkdir dist
+          cp src-tauri/target/release/bundle/dmg/*.dmg "dist/Corolla-${GITHUB_REF_NAME#v}-macos-arm64.dmg"
+
+      - uses: actions/upload-artifact@v4
+        if: startsWith(github.ref, 'refs/tags/v')
+        with:
+          name: macos
+          path: dist/*
+          retention-days: 1
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [windows, macos]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # actions/checkout leaves the tag lightweight; fetch it for its annotated message.
+      - name: Fetch the tag itself (annotated message)
+        run: git fetch --force origin "+${GITHUB_REF}:${GITHUB_REF}"
+
+      - name: Check the tag matches the version
+        run: |
+          set -euo pipefail
+          VER=$(python3 -c "import json;print(json.load(open('package.json'))['version'])")
+          [ "${GITHUB_REF_NAME}" = "v$VER" ] || { echo "Tag ${GITHUB_REF_NAME} does not match version $VER"; exit 1; }
+          # The unit tests already checked that every other file states the same version.
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      # Safe to re-run: if the release already exists, its files and notes are replaced.
+      - name: Publish the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          ls -la dist
+          git tag -l --format='%(contents)' "${GITHUB_REF_NAME}" > notes.md
+          [ -s notes.md ] || echo "Corolla ${GITHUB_REF_NAME}" > notes.md
+          cat notes.md
+          if gh release view "${GITHUB_REF_NAME}" > /dev/null 2>&1; then
+            echo "Release exists: updating its files and notes"
+            gh release upload "${GITHUB_REF_NAME}" dist/* --clobber
+            gh release edit "${GITHUB_REF_NAME}" --notes-file notes.md
+            exit 0
+          fi
+          gh release create "${GITHUB_REF_NAME}" dist/* \
+            --title "Corolla ${GITHUB_REF_NAME}" --notes-file notes.md --verify-tag

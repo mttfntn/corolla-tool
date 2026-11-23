@@ -1,5 +1,5 @@
 # Fills src-tauri\binaries\windows with the conversion engines. Safe to re-run:
-# anything already present is skipped. Needs VS Build Tools 2022 for Assimp.
+# anything already present is skipped. Needs VS Build Tools 2022 or later for Assimp.
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 $out = Join-Path $root "src-tauri\binaries\windows"
@@ -74,7 +74,8 @@ if (-not (Test-Path "$out\assimp.exe")) {
     $cmake = "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe"
     if (Get-Command cmake -ErrorAction SilentlyContinue) { $cmake = "cmake" }
     $build = Join-Path $dir "build"
-    & $cmake -S $src -B $build -G "Visual Studio 17 2022" -A x64 `
+    # No -G: CMake picks the newest Visual Studio installed (2022 or later).
+    & $cmake -S $src -B $build -A x64 `
         -DBUILD_SHARED_LIBS=OFF -DUSE_STATIC_CRT=ON -DASSIMP_BUILD_ASSIMP_TOOLS=ON -DASSIMP_BUILD_TESTS=OFF `
         -DASSIMP_BUILD_SAMPLES=OFF -DASSIMP_WARNINGS_AS_ERRORS=OFF -DASSIMP_INSTALL=OFF -DASSIMP_NO_EXPORT=OFF
     if ($LASTEXITCODE -ne 0) { throw "Assimp configure failed" }
