@@ -688,6 +688,30 @@ mod encoder_tests {
     }
 
     #[test]
+    fn a_mac_with_only_sips_converts_its_own_pictures() {
+        let tools = Tools { sips: Some("sips".into()), ..Default::default() };
+        assert!(can_convert(&tools, "jpg", "png"));
+        assert!(can_convert(&tools, "png", "heic"));
+        assert!(can_convert(&tools, "tiff", "pdf"), "a PDF page is a JPEG, which sips makes");
+        assert!(can_convert(&tools, "svg", "jpg"), "drawn to PNG first, then sips");
+        assert!(!can_convert(&tools, "webp", "jpg"), "sips can't read WebP");
+        assert!(!can_convert(&tools, "png", "exr"));
+        assert!(!can_convert(&tools, "png", "ico"));
+        let compress = Op::Compress { quality: 70, max_edge: None };
+        assert!(can_process(&tools, "jpg", &compress));
+        assert!(!can_process(&tools, "webp", &compress));
+        assert!(can_combine(&tools, &["png".into(), "jpg".into()]));
+        assert!(!can_combine(&tools, &["webp".into()]));
+    }
+
+    #[test]
+    fn windows_without_imagemagick_offers_no_pictures() {
+        let tools = Tools { ffmpeg: Some("ffmpeg".into()), ..Default::default() };
+        assert!(!can_convert(&tools, "jpg", "png"), "no sips outside macOS");
+        assert!(can_combine(&tools, &["jpg".into()]), "JPEGs go in as they are");
+    }
+
+    #[test]
     fn an_unknown_ffmpeg_offers_everything_as_before() {
         let tools = Tools { ffmpeg: Some("ffmpeg".into()), ..Default::default() };
         assert!(can_convert(&tools, "wav", "ogg"));

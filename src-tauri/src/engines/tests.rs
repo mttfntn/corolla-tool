@@ -180,12 +180,28 @@ fn sample_for(
 #[test]
 #[ignore = "needs the engines from scripts/fetch-engines"]
 fn every_pair_in_the_matrix_converts() {
-    let tools = Tools::locate(&[bundled_dir()]);
-    println!("{tools:#?}");
+    // Samples are made with every engine found; the conversions use `tools`,
+    // which leaves out the engines named in COROLLA_TEST_WITHOUT (for example
+    // "ffmpeg,magick" to test a Mac with only sips and the bundled engines).
+    let all = Tools::locate(&[bundled_dir()]);
+    let mut tools = all.clone();
+    for name in std::env::var("COROLLA_TEST_WITHOUT").unwrap_or_default().split(',').map(str::trim) {
+        match name {
+            "" => {}
+            "ffmpeg" => (tools.ffmpeg, tools.ffmpeg_encoders) = (None, None),
+            "magick" => tools.magick = None,
+            "sips" => tools.sips = None,
+            "blender" => tools.blender = None,
+            "fontforge" => tools.fontforge = None,
+            other => panic!("COROLLA_TEST_WITHOUT: unknown engine {other}"),
+        }
+    }
+    let shown = Tools { ffmpeg_encoders: None, ..tools.clone() };
+    println!("{shown:#?}");
     let dir = std::env::temp_dir().join(format!("corolla-matrix-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
-    let mut samples = make_samples(&tools, &dir);
+    let mut samples = make_samples(&all, &dir);
     // No engine here can write HEIC, so reading it needs a real photo.
     let heic = Path::new(env!("CARGO_MANIFEST_DIR")).join("../tests/fixtures/sample.heic");
     let has_heic = heic.is_file();
@@ -215,14 +231,14 @@ fn every_pair_in_the_matrix_converts() {
                 hidden.push(format!("{label} (needs FontForge)"));
                 continue;
             }
-            if from == "heic" && !has_heic && !can_convert(&tools, "png", "heic") {
+            if from == "heic" && !has_heic && !can_convert(&all, "png", "heic") {
                 untested.push(label);
                 continue;
             }
-            let Some(sample) = sample_for(from, &mut samples, &tools, &dir) else {
+            let Some(sample) = sample_for(from, &mut samples, &all, &dir) else {
                 // Only a failure if this machine claims it can make one.
                 match seed_of(from) {
-                    Some(seed) if !can_convert(&tools, seed, from) => untested.push(label),
+                    Some(seed) if !can_convert(&all, seed, from) => untested.push(label),
                     _ => failed.push(format!("{label}: couldn't make a sample of {from}")),
                 }
                 continue;
