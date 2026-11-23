@@ -1,10 +1,12 @@
-# Every push and pull request: unit tests and clippy on Windows and macOS, then the real
-# engines on both, and the installers built and checked.
-# Windows: the full engine suite with every bundled engine, then the NSIS installer.
-# macOS: the conversion matrix in three setups (with Homebrew's FFmpeg, ImageMagick and
-# FontForge; with FFmpeg only; with only what the app carries), then the DMG.
-# A pushed version tag (vX.Y.Z) also checks the tag against the version and publishes a
-# GitHub release with both installers. Files pass between jobs only for a tag, kept 1 day.
+# The repository is private, so Actions minutes count (macOS ones ten times over).
+# Every push and pull request: unit tests and clippy on Windows (about 10 minutes); the
+# macOS side is tested on a Mac before pushing (AGENTS.md).
+# A pushed version tag (vX.Y.Z), or a manual run: the real Windows engines (cached by
+# the fetch script's contents), the full engine suite, and the NSIS installer built and
+# checked; for a tag, also the tag checked against the version and the GitHub release
+# published with the installer. The macOS DMG is built on a Mac by
+# scripts/release-mac.sh, which adds it to the same release. The macOS job below runs
+# only when started by hand with "macos" ticked.
 name: tests
 
 on:
@@ -13,6 +15,11 @@ on:
     tags: ["v*"]
   pull_request:
   workflow_dispatch:
+    inputs:
+      macos:
+        description: "Also test the macOS engines and build the DMG (macOS minutes count 10x)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -27,13 +34,9 @@ env:
 
 jobs:
   unit:
-    name: unit tests (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
+    name: unit tests (Windows)
+    runs-on: windows-latest
     timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
 
@@ -58,6 +61,7 @@ jobs:
 
   windows:
     name: engines and installer (Windows)
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
     needs: unit
     runs-on: windows-latest
     timeout-minutes: 75
@@ -73,6 +77,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+
+      # The engines (about 450 MB) are kept between runs until the fetch script changes;
+      # the script then skips what's there. Their licenses are in the same folder.
+      - uses: actions/cache@v4
+        with:
+          path: src-tauri/binaries/windows
+          key: engines-windows-${{ hashFiles('scripts/fetch-engines.ps1', 'THIRD-PARTY-NOTICES.md', 'LICENSE') }}
 
       # Downloads retry inside the script (curl --retry 3); the whole fetch gets a second
       # try in case a server cuts a large download off.
@@ -118,6 +129,7 @@ jobs:
 
   macos:
     name: engines and DMG (macOS)
+    if: github.event_name == 'workflow_dispatch' && inputs.macos
     needs: unit
     runs-on: macos-latest
     timeout-minutes: 60
@@ -171,22 +183,9 @@ jobs:
       - name: Check the DMG
         run: python3 tools/check_package.py src-tauri/target/release/bundle/dmg/*.dmg
 
-      - name: Name the DMG for the release
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: |
-          mkdir dist
-          cp src-tauri/target/release/bundle/dmg/*.dmg "dist/Corolla-${GITHUB_REF_NAME#v}-macos-arm64.dmg"
-
-      - uses: actions/upload-artifact@v4
-        if: startsWith(github.ref, 'refs/tags/v')
-        with:
-          name: macos
-          path: dist/*
-          retention-days: 1
-
   release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [windows, macos]
+    needs: windows
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
@@ -212,7 +211,8 @@ jobs:
           path: dist
           merge-multiple: true
 
-      # Safe to re-run: if the release already exists, its files and notes are replaced.
+      # Safe to re-run: if the release already exists (also when scripts/release-mac.sh
+      # made it first), its Windows file and notes are replaced and the Mac files kept.
       - name: Publish the GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
