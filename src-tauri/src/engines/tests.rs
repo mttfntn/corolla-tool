@@ -144,6 +144,19 @@ fn is_readable(tools: &Tools, from: &str, target: &str, output: &Path) -> Result
 }
 
 /// Every source format, derived from an already verified sample when needed.
+/// The sample a format's own sample is converted from.
+fn seed_of(format: &str) -> Option<&'static str> {
+    Some(match formats::matrix().formats.get(format)?.family.as_str() {
+        "audio" => "wav",
+        "video" => "mp4",
+        "image" | "pdf" => "png",
+        "archive" => "zip",
+        "model" => "obj",
+        "font" => "ttf",
+        _ => return None,
+    })
+}
+
 fn sample_for(
     format: &str,
     samples: &mut HashMap<String, PathBuf>,
@@ -153,17 +166,7 @@ fn sample_for(
     if let Some(existing) = samples.get(format) {
         return Some(existing.clone());
     }
-    let matrix = formats::matrix();
-    let family = &matrix.formats.get(format)?.family;
-    let seed = match family.as_str() {
-        "audio" => "wav",
-        "video" => "mp4",
-        "image" | "pdf" => "png",
-        "archive" => "zip",
-        "model" => "obj",
-        "font" => "ttf",
-        _ => return None,
-    };
+    let seed = seed_of(format)?;
     let seed_path = samples.get(seed)?.clone();
     let folder = dir.join(format!("seed-{format}"));
     std::fs::create_dir_all(&folder).unwrap();
@@ -217,7 +220,11 @@ fn every_pair_in_the_matrix_converts() {
                 continue;
             }
             let Some(sample) = sample_for(from, &mut samples, &tools, &dir) else {
-                failed.push(format!("{label}: couldn't make a sample of {from}"));
+                // Only a failure if this machine claims it can make one.
+                match seed_of(from) {
+                    Some(seed) if !can_convert(&tools, seed, from) => untested.push(label),
+                    _ => failed.push(format!("{label}: couldn't make a sample of {from}")),
+                }
                 continue;
             };
             let folder = dir.join(format!("{from}-to-{target}"));

@@ -629,3 +629,54 @@ mod tests;
 #[cfg(test)]
 mod abuse_tests;
 
+#[cfg(test)]
+mod encoder_tests {
+    use super::*;
+
+    /// The start of `ffmpeg -hide_banner -encoders` from Homebrew's FFmpeg 9.
+    const LISTING: &str = "Encoders:
+ V..... = Video
+ A..... = Audio
+ S..... = Subtitle
+ .F.... = Frame-level multithreading
+ ------
+ V....D libx264              libx264 H.264 / AVC / MPEG-4 AVC / MPEG-4 part 10 (codec h264)
+ V....D libvpx-vp9           libvpx VP9 (codec vp9)
+ A....D aac                  AAC (Advanced Audio Coding)
+ A....D libmp3lame           libmp3lame MP3 (MPEG audio layer 3) (codec mp3)
+ A..X.D vorbis               Vorbis
+ A....D libopus              libopus Opus (codec opus)
+ S..... srt                  SubRip subtitle
+";
+
+    #[test]
+    fn encoder_listing_is_parsed_without_the_legend() {
+        let names = parse_encoders(LISTING);
+        assert_eq!(names, ["libx264", "libvpx-vp9", "aac", "libmp3lame", "vorbis", "libopus", "srt"]);
+    }
+
+    #[test]
+    fn targets_without_their_encoder_are_not_offered() {
+        let tools = Tools {
+            ffmpeg: Some("ffmpeg".into()),
+            sips: Some("sips".into()),
+            ffmpeg_encoders: Some(parse_encoders(LISTING)),
+            ..Default::default()
+        };
+        assert!(can_convert(&tools, "wav", "mp3"));
+        assert!(can_convert(&tools, "mp4", "webm"));
+        assert!(!can_convert(&tools, "wav", "ogg"), "the native vorbis encoder isn't libvorbis");
+        assert!(!can_convert(&tools, "png", "webp"), "no libwebp, and no ImageMagick");
+        assert!(!can_convert(&tools, "png", "avif"));
+        assert!(can_convert(&tools, "png", "jpg"), "sips");
+        let with_magick = Tools { magick: Some("magick".into()), ..tools.clone() };
+        assert!(can_convert(&with_magick, "png", "webp"), "ImageMagick writes WebP itself");
+    }
+
+    #[test]
+    fn an_unknown_ffmpeg_offers_everything_as_before() {
+        let tools = Tools { ffmpeg: Some("ffmpeg".into()), ..Default::default() };
+        assert!(can_convert(&tools, "wav", "ogg"));
+        assert!(can_convert(&tools, "mp4", "webm"));
+    }
+}
