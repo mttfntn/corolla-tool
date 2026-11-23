@@ -1,0 +1,66 @@
+{
+  "aliases": {
+    "jpeg": "jpg",
+    "jpe": "jpg",
+    "tif": "tiff",
+    "heif": "heic",
+    "aif": "aiff",
+    "gz": "gzip",
+    "tgz": "gzip",
+    "stp": "step"
+  },
+  "formats": {
+    "jpg":  { "family": "image", "targets": ["png", "webp", "heic", "tiff", "avif", "bmp", "exr", "hdr", "ico", "pdf", "docx"] },
+    "png":  { "family": "image", "targets": ["jpg", "webp", "heic", "tiff", "avif", "bmp", "exr", "hdr", "ico", "pdf", "docx"] },
+    "webp": { "family": "image", "targets": ["jpg", "png", "heic", "tiff", "avif", "bmp", "exr", "hdr", "ico", "pdf"] },
+    "heic": { "family": "image", "targets": ["jpg", "png", "webp", "tiff", "avif", "bmp", "exr", "hdr", "ico", "pdf"] },
+    "tiff": { "family": "image", "targets": ["jpg", "png", "webp", "heic", "avif", "bmp", "exr", "hdr", "ico", "pdf"] },
+    "svg":  { "family": "image", "targets": ["jpg", "png", "webp", "heic", "tiff", "avif", "bmp", "ico", "pdf"] },
+    "avif": { "family": "image", "targets": ["jpg", "png", "webp", "heic", "tiff", "bmp", "exr", "hdr", "ico", "pdf"] },
+    "bmp":  { "family": "image", "targets": ["jpg", "png", "webp", "heic", "tiff", "avif", "exr", "hdr", "ico", "pdf"] },
+    "exr":  { "family": "image", "targets": ["jpg", "png", "webp", "heic", "tiff", "avif", "bmp", "hdr", "ico", "pdf"] },
+    "hdr":  { "family": "image", "targets": ["jpg", "png", "webp", "heic", "tiff", "avif", "bmp", "exr", "ico", "pdf"] },
+    "ico":  { "family": "image", "targets": ["jpg", "png", "webp", "heic", "tiff", "avif", "bmp", "exr", "hdr", "pdf"] },
+    "pdf":  { "family": "pdf",   "targets": ["docx", "jpg", "png", "txt"] },
+
+    "mp3":  { "family": "audio", "targets": ["m4a", "wav", "flac", "ogg", "opus", "aiff", "wma"] },
+    "m4a":  { "family": "audio", "targets": ["mp3", "wav", "flac", "ogg", "opus", "aiff", "wma"] },
+    "wav":  { "family": "audio", "targets": ["mp3", "m4a", "flac", "ogg", "opus", "aiff", "wma"] },
+    "flac": { "family": "audio", "targets": ["mp3", "m4a", "wav", "ogg", "opus", "aiff", "wma"] },
+    "ogg":  { "family": "audio", "targets": ["mp3", "m4a", "wav", "flac", "opus", "aiff", "wma"] },
+    "opus": { "family": "audio", "targets": ["mp3", "m4a", "wav", "flac", "ogg", "aiff", "wma"] },
+    "aiff": { "family": "audio", "targets": ["mp3", "m4a", "wav", "flac", "ogg", "opus", "wma"] },
+    "wma":  { "family": "audio", "targets": ["mp3", "m4a", "wav", "flac", "ogg", "opus", "aiff"] },
+
+    "mp4":  { "family": "video", "targets": ["mov", "mkv", "webm", "avi", "wmv", "gif", "mp3"] },
+    "mov":  { "family": "video", "targets": ["mp4", "mkv", "webm", "avi", "wmv", "gif", "mp3"] },
+    "mkv":  { "family": "video", "targets": ["mp4", "mov", "webm", "avi", "wmv", "gif", "mp3"] },
+    "webm": { "family": "video", "targets": ["mp4", "mov", "mkv", "avi", "wmv", "gif", "mp3"] },
+    "avi":  { "family": "video", "targets": ["mp4", "mov", "mkv", "webm", "wmv", "gif", "mp3"] },
+    "wmv":  { "family": "video", "targets": ["mp4", "mov", "mkv", "webm", "avi", "gif", "mp3"] },
+    "gif":  { "family": "video", "targets": ["mp4", "mov", "mkv", "webm", "avi", "wmv"] },
+
+    "srt":  { "family": "subtitle", "targets": ["vtt", "txt"] },
+    "vtt":  { "family": "subtitle", "targets": ["srt", "txt"] },
+    "txt":  { "family": "text",     "targets": ["pdf", "jpg", "png", "srt", "vtt"] },
+
+    "zip":  { "family": "archive", "targets": ["tar", "gzip", "rar"] },
+    "tar":  { "family": "archive", "targets": ["zip", "gzip", "rar"] },
+    "gzip": { "family": "archive", "targets": ["zip", "tar", "rar"] },
+    "rar":  { "family": "archive", "targets": ["zip", "tar", "gzip"] },
+
+    "fbx":  { "family": "model", "targets": ["glb", "gltf", "dae", "obj", "stl"] },
+    "glb":  { "family": "model", "targets": ["fbx", "gltf", "dae", "obj", "stl"] },
+    "gltf": { "family": "model", "targets": ["fbx", "glb", "dae", "obj", "stl"] },
+    "dae":  { "family": "model", "targets": ["fbx", "glb", "gltf", "obj", "stl"] },
+    "obj":  { "family": "model", "targets": ["fbx", "glb", "gltf", "dae", "stl"] },
+    "stl":  { "family": "model", "targets": ["fbx", "glb", "gltf", "dae", "obj"] },
+
+    "step": { "family": "cad", "targets": ["stl", "obj", "glb", "gltf", "fbx", "dae"] },
+
+    "ttf":   { "family": "font", "targets": ["otf", "woff", "woff2"] },
+    "otf":   { "family": "font", "targets": ["ttf", "woff", "woff2"] },
+    "woff":  { "family": "font", "targets": ["ttf", "otf", "woff2"] },
+    "woff2": { "family": "font", "targets": ["ttf", "otf", "woff"] }
+  }
+}

@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Corolla Settings</title>
+    <link rel="stylesheet" href="settings.css" />
+  </head>
+  <body>
+    <nav id="nav" aria-label="Settings sections"></nav>
+    <main>
+      <section id="layout-page" hidden>
+        <h1 id="layout-title"></h1>
+        <p class="hint">Drag a circle onto another to swap their places. Switch off the ones you don't use. A file only shows the circles it can use.</p>
+        <div class="columns">
+          <svg id="preview" viewBox="-320 -320 640 640" role="img" aria-label="Wheel preview"></svg>
+          <div id="toggles"></div>
+        </div>
+      </section>
+
+      <section id="presets-page" hidden>
+        <h1>Presets</h1>
+        <p class="hint">Your own compress and resize circles. Each one appears on the wheel for the file types it applies to.</p>
+        <div id="preset-list"></div>
+        <div class="row">
+          <button id="add-compress">New compress</button>
+          <button id="add-resize">New resize</button>
+        </div>
+        <form id="editor" hidden>
+          <h2 id="editor-title"></h2>
+          <div class="fields" data-for="compress">
+            <label>Label <input id="line1" maxlength="8" autocomplete="off" /></label>
+            <label>Second line <input id="line2" maxlength="8" autocomplete="off" placeholder="optional, such as 60" /></label>
+            <label>Quality <span class="value" id="quality-value"></span>
+              <input id="quality" type="range" min="1" max="100" />
+            </label>
+            <label>Longest side, pixels <input id="max-edge" type="number" min="16" max="65535" placeholder="keep the size" /></label>
+            <fieldset>
+              <legend>Applies to</legend>
+              <label class="check"><input type="checkbox" data-family="image" /> Images</label>
+              <label class="check"><input type="checkbox" data-family="pdf" /> PDF</label>
+              <label class="check"><input type="checkbox" data-family="video" /> Video</label>
+            </fieldset>
+          </div>
+          <div class="fields" data-for="resize">
+            <fieldset>
+              <legend>Make images</legend>
+              <label class="check"><input type="radio" name="resize-mode" value="divide" /> Smaller by a factor</label>
+              <label class="check"><input type="radio" name="resize-mode" value="edge" /> Fit a longest side</label>
+            </fieldset>
+            <label><span id="resize-label"></span> <input id="resize-value" type="number" min="2" /></label>
+            <p class="hint">On the wheel: <strong id="resize-preview"></strong></p>
+          </div>
+          <p class="error" id="editor-error" role="alert"></p>
+          <div class="row">
+            <button type="submit" class="primary">Save circle</button>
+            <button type="button" id="cancel-edit">Cancel</button>
+          </div>
+        </form>
+      </section>
+
+      <section id="general-page" hidden>
+        <h1>General</h1>
+        <label class="check"><input type="checkbox" id="enabled" /> Show the wheel on Ctrl+drag</label>
+        <label class="check"><input type="checkbox" id="login" /> Start at login</label>
+        <p class="error" id="login-error" role="alert"></p>
+        <h2>Conversion quality</h2>
+        <p class="hint">For changing formats. Compress circles use their own quality.</p>
+        <label class="check"><input type="radio" name="quality" value="0" /> High</label>
+        <label class="check"><input type="radio" name="quality" value="1" /> Balanced</label>
+        <label class="check"><input type="radio" name="quality" value="2" /> Small files</label>
+        <h2>Reset</h2>
+        <p class="hint">Restores the default circles and positions, and removes your presets.</p>
+        <button id="reset">Reset everything</button>
+      </section>
+    </main>
+    <script src="wheel-draw.js"></script>
+    <script src="settings.js"></script>
+  </body>
+</html>

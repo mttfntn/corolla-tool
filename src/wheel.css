@@ -1,0 +1,94 @@
+/* The wheel floats over anything, so it's always white on a dark see-through disc. */
+:root {
+  --white: #ffffff;
+  --grey: rgba(255, 255, 255, 0.38);
+  --disc: rgba(16, 16, 16, 0.66);
+  --ink: #000000;
+  color-scheme: dark;
+}
+
+html,
+body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  /* Not fully transparent: Windows passes drags through alpha-0 pixels, and
+     the invisible catcher window has to receive them. 1/255 can't be seen. */
+  background: #00000001;
+  user-select: none;
+  cursor: default;
+}
+
+svg text {
+  font-family: Helvetica, Arial, sans-serif;
+  text-anchor: middle;
+  dominant-baseline: central;
+  fill: var(--white);
+}
+
+#wheel {
+  display: block;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  transform: scale(0.94);
+  transition: opacity 90ms ease-out, transform 120ms ease-out;
+}
+
+body[data-mode="open"] #wheel,
+body[data-mode="busy"] #wheel,
+body[data-mode="empty"] #wheel {
+  opacity: 1;
+  transform: scale(1);
+}
+
+#disc { fill: var(--disc); }
+
+#lines line {
+  stroke: var(--white);
+  stroke-width: 2.5;
+  stroke-dasharray: 7 6;
+}
+
+.tool circle {
+  fill: transparent;
+  stroke: var(--white);
+  stroke-width: 2.5;
+}
+.tool.disabled circle { stroke: var(--grey); }
+.tool.disabled text { fill: var(--grey); }
+
+.tool.hover circle { fill: var(--white); }
+.tool.hover text { fill: var(--ink); }
+
+/* The centre text sits over the lines, as in the mockup, so it keeps a dark edge. */
+#top, #second {
+  font-size: 34px;
+  paint-order: stroke;
+  stroke: rgba(16, 16, 16, 0.85);
+  stroke-width: 5px;
+  stroke-linejoin: round;
+}
+
+#hub { fill: var(--white); }
+#mark {
+  fill: var(--ink);
+  font-size: 34px;
+  font-weight: 700;
+}
+
+#credit text {
+  font-size: 13.5px;
+  paint-order: stroke;
+  stroke: rgba(16, 16, 16, 0.85);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+
+body[data-mode="busy"] #lines,
+body[data-mode="busy"] #circles,
+body[data-mode="empty"] #lines,
+body[data-mode="empty"] #circles { display: none; }
+body[data-mode="empty"] #top,
+body[data-mode="empty"] #second { font-size: 24px; }

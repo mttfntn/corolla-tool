@@ -1,0 +1,9 @@
+{
+  "bundle": {
+    "targets": ["nsis"],
+    "resources": { "binaries/windows/": "binaries/" },
+    "windows": {
+      "webviewInstallMode": { "type": "offlineInstaller" }
+    }
+  }
+}
