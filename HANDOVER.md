@@ -13,8 +13,12 @@ existing programs ("engines") that the installer carries: FFmpeg, ImageMagick, 7
 Assimp, Mayo and FontForge on Windows; on macOS only 7-Zip, PDFium and Assimp are carried, and
 the rest is found when the user installs it (README, "macOS: what to install").
 
-Version 0.3.0 is the first one on GitHub. The repository is public:
-<https://github.com/mttfntn/corolla-tool>.
+Version 0.3.0 is the first one on GitHub. The repository is **private**:
+<https://github.com/mttfntn/corolla-tool>. While it's private, the README badges are static
+(update the release badge by hand for each release), Actions minutes count against the
+account (macOS ten times over, which is why CI tests only Windows on each push), and private
+vulnerability reporting, which SECURITY.md points to, isn't available. To make it public, see
+"Going public" below.
 
 ## What you need
 
@@ -50,11 +54,13 @@ Version 0.3.0 is the first one on GitHub. The repository is public:
 | `src/settings.html`, `settings.js`, `settings.css` | The Settings window. |
 | `src-tauri/tauri.conf.json`, `tauri.windows.conf.json`, `tauri.macos.conf.json` | App and installer settings; the per-system files add the engines folder, NSIS with the offline WebView2 on Windows, and DMG, ad hoc signing and macOS 13 minimum on macOS. |
 | `scripts/fetch-engines.ps1`, `fetch-engines.sh` | Download (and for Assimp, build) the engines and their licenses. |
+| `scripts/release-mac.sh` | Builds, tests and checks the DMG on a Mac and adds it, with the extras installer, to the release. |
+| `macos/Install Corolla Extras.command` | The double-click installer for the free tools on a Mac (Homebrew, FFmpeg, ImageMagick, FontForge, FreeCAD, rar; LibreOffice and Blender on request). `DRY_RUN=1` prints instead of installing. Shipped zipped, which keeps it executable. |
 | `scripts/make-icon.py` | Draws the app icon (`python3 scripts/make-icon.py out.png`). Not shipped. |
 | `tools/check_package.py` | Opens a built DMG or NSIS installer and checks engines, licenses, signature; prints a contents digest. |
 | `tests/drive-gesture.ps1`, `drive-explorer.ps1` | Windows only: real drags with synthetic input, to test the gesture. They take over the mouse. |
 | `tests/fixtures` | Test files: three fonts (OFL), two STEP files. |
-| `.github/workflows/tests.yml` | CI and releases. |
+| `.github/workflows/tests.yml` | CI: unit tests on Windows for each push; for a tag, the Windows engines, installer and the release. |
 
 ## How the main feature works
 
@@ -154,17 +160,35 @@ real synthetic drags; the macOS gesture is only tested by hand.
    git push origin v0.3.1
    ```
 
-3. CI tests again, builds `Corolla-<version>-windows-x64-setup.exe` and
-   `Corolla-<version>-macos-arm64.dmg`, checks the tag against `package.json`, and publishes
-   the release with the tag's message as notes. If it fails after the release exists,
-   re-running the workflow replaces the files instead of failing.
-4. Download both files from the release and check them:
+3. CI tests again on Windows, builds `Corolla-<version>-windows-x64-setup.exe`, checks the
+   tag against `package.json`, and publishes the release with the tag's message as notes
+   (about 25 minutes the first time, less once the engines are cached). Re-running it replaces
+   the Windows file instead of failing.
+4. On a Mac, with the tag checked out: `bash scripts/release-mac.sh`. It fetches the engines,
+   runs clippy, the unit tests and the engine tests that need nothing installed, builds and
+   checks the DMG, and adds `Corolla-<version>-macos-arm64.dmg` and
+   `Corolla-<version>-macos-extras.zip` to the release (creating it if CI hasn't yet).
+5. Update the release badge in the README by hand (the repository is private).
+6. Download the files from the release and check them:
    `python3 tools/check_package.py <file>` (the Windows check needs `src-tauri/binaries/windows`
    fetched, as it uses that 7-Zip).
+
+The macOS CI job can still be started by hand (Actions > tests > Run workflow, tick
+"macos"): it tests with Homebrew's tools in three setups and builds the DMG, but uses ten
+times the minutes.
 
 The Windows engines are the latest releases at build time (Mayo and FontForge are pinned by
 version and checksum). To pin another one, give it a fixed URL and checksum in
 `fetch-engines.ps1`, as Mayo has.
+
+## Going public
+
+Check the history again for anything private (`git log -p`), the commit emails, and that CI
+is green. Then switch the README's static badges back to live ones (shields.io's
+`github/v/release`, `github/license`, `github/languages/top`), make the repository public,
+switch on private vulnerability reporting (Settings > Code security), and check every badge.
+Public repositories get Actions minutes free, so the macOS job could then run on every tag
+again (`if:` in `tests.yml`).
 
 ## Updating the engines
 
@@ -224,6 +248,11 @@ exact origin isn't recorded.
 - **`build-cache` is shared** by both fetch scripts; the macOS one uses `-mac` folder names
   because the Windows one empties its own folders before unpacking.
 - **Windows console:** `tools/check_package.py` prints ASCII only.
+- **FontForge's uninstaller can hang** on GitHub's Windows machines (it did, for 69 minutes);
+  `fetch-engines.ps1` stops it after 2 minutes.
+- **CI caches the Windows engines** by the contents of `fetch-engines.ps1`,
+  `THIRD-PARTY-NOTICES.md` and `LICENSE`; change the script (for instance a pinned version) to
+  fetch new ones.
 
 ## Known limits
 

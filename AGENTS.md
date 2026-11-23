@@ -18,6 +18,8 @@ COROLLA_TEST_WITHOUT=ffmpeg,magick cargo test --manifest-path src-tauri/Cargo.to
 COROLLA_PROBE_OUT=/tmp/probe.txt cargo test --manifest-path src-tauri/Cargo.toml behaviour_probe -- --ignored
 npm run dev                                                # run from source
 npm run build                                              # NSIS (Windows) / DMG (macOS)
+bash scripts/release-mac.sh                                # on the tagged commit: DMG + extras zip -> release
+DRY_RUN=1 "macos/Install Corolla Extras.command"           # what the Mac extras installer would run
 python3 tools/check_package.py <dmg or setup.exe>          # engines, licenses, signature, digest
 ```
 
@@ -71,6 +73,11 @@ Unit tests need `src-tauri/binaries/<os>` to exist (empty is fine): the bundle c
 - Don't add docstrings that the UI shows; there are none of those in this project (Rust doc
   comments aren't shown to users).
 - `tests.rs` and Rust sources must stay plain text: write bytes as `\0`, not raw NULs.
+- `fetch-engines.ps1`: FontForge's uninstaller can hang on CI; it gets 2 minutes. CI caches
+  `src-tauri/binaries/windows` keyed on the script, notices and license; the license step keeps
+  existing copies when `build-cache` is absent.
+- The Mac extras installer must be shipped zipped (`release-mac.sh` does it): a plain
+  download loses the executable bit.
 
 ## Verification done for 0.3.0 (macOS 26.6, Apple silicon; Homebrew FFmpeg 9.0.2)
 
@@ -94,10 +101,14 @@ Unit tests need `src-tauri/binaries/<os>` to exist (empty is fine): the bundle c
 ## Release checklist
 
 1. Bump the version in the four files above (`npm install --package-lock-only` for the lock).
-2. Push to `main`; CI green (`unit`, `windows`, `macos`).
+2. On a Mac, run the unit tests and clippy (CI tests only Windows on push); push to `main`;
+   CI green (`unit`).
 3. `git tag -a vX.Y.Z -m "Corolla X.Y.Z" -m "- notes"` and `git push origin vX.Y.Z`.
-4. CI publishes `Corolla-X.Y.Z-windows-x64-setup.exe` and `Corolla-X.Y.Z-macos-arm64.dmg`;
-   re-running replaces files. Download both and run `tools/check_package.py` on them.
+4. CI builds and publishes `Corolla-X.Y.Z-windows-x64-setup.exe` (jobs `windows`, `release`).
+5. On a Mac at the tag: `bash scripts/release-mac.sh` adds `Corolla-X.Y.Z-macos-arm64.dmg`
+   and `Corolla-X.Y.Z-macos-extras.zip`. Either side may create the release first.
+6. Update the static release badge in the README (private repo). Download the files and run
+   `tools/check_package.py` on them.
 
 ## Git setup
 
@@ -105,7 +116,8 @@ Unit tests need `src-tauri/binaries/<os>` to exist (empty is fine): the bundle c
   goes in a commit before the tests that check it.
 - Author: Matteo Fontana, with the commit email linked to the GitHub account. End commit
   messages with the Co-Authored-By line if an assistant helped.
-- Remote: `origin` = https://github.com/mttfntn/corolla-tool (public). The first commit
+- Remote: `origin` = https://github.com/mttfntn/corolla-tool (private: static badges,
+  Actions minutes count, macOS ×10, so CI tests only Windows per push). The first commit
   (`5af7067`) is the code as it came from the Windows PC: the baseline for comparisons.
 - Never commit `src-tauri/binaries`, `build-cache`, `src-tauri/target`, `node_modules`, or
   local assistant/editor setup (`.claude/`, `.mcp.json`, `.vscode/`, `.idea/`).

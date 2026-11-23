@@ -1,10 +1,10 @@
 # Corolla
 
 [![Platforms](https://img.shields.io/badge/platform-Windows%2010%2B%20%7C%20macOS%2013%2B-555)](#download)
-[![Release](https://img.shields.io/github/v/release/mttfntn/corolla-tool)](https://github.com/mttfntn/corolla-tool/releases/latest)
+[![Release](https://img.shields.io/badge/release-v0.3.0-blue)](https://github.com/mttfntn/corolla-tool/releases/latest)
 [![Tests](https://github.com/mttfntn/corolla-tool/actions/workflows/tests.yml/badge.svg)](https://github.com/mttfntn/corolla-tool/actions/workflows/tests.yml)
-[![License](https://img.shields.io/github/license/mttfntn/corolla-tool)](LICENSE)
-[![Language](https://img.shields.io/github/languages/top/mttfntn/corolla-tool)](src-tauri/src/main.rs)
+[![License](https://img.shields.io/badge/license-GPL--3.0--or--later-blue)](LICENSE)
+[![Language](https://img.shields.io/badge/language-Rust-DEA584)](src-tauri/src/main.rs)
 [![Engines](https://img.shields.io/badge/engines-FFmpeg%20%C2%B7%20ImageMagick%20%C2%B7%207--Zip%20%C2%B7%20PDFium%20%C2%B7%20Assimp-blue)](THIRD-PARTY-NOTICES.md)
 
 Drag files with **Ctrl** held (**Cmd** on a Mac) and a wheel of circles appears at the
@@ -31,8 +31,9 @@ From the [latest release](https://github.com/mttfntn/corolla-tool/releases/lates
 - **Windows 10 or 11 (64-bit):** `Corolla-<version>-windows-x64-setup.exe`. It contains every
   engine and the WebView2 runtime, so it works offline with nothing else installed.
 - **macOS 13 or newer on Apple silicon:** `Corolla-<version>-macos-arm64.dmg`. Open it and drag
-  Corolla to Applications. The Mac version carries fewer engines; see
-  [macOS: what to install](#macos-what-to-install).
+  Corolla to Applications. The Mac version carries fewer engines; to add the rest in one go,
+  also download `Corolla-<version>-macos-extras.zip` (see
+  [macOS: what to install](#macos-what-to-install)).
 
 Corolla isn't signed with a paid Apple or Microsoft certificate, so the first start needs one
 extra step:
@@ -82,8 +83,16 @@ installed FFmpeg has. To add or change a conversion, edit `src-tauri/formats.jso
 The Mac app carries 7-Zip, PDFium and Assimp, and uses macOS's own `sips` for pictures. Out of
 the box that covers archives, PDF, 3D models, WOFF and WOFF2 fonts, subtitles and text, and
 JPG, PNG, TIFF, BMP and HEIC pictures (between each other, to PDF, and from SVG). The rest needs
-free tools that Corolla finds once they're installed. The easiest way is
-[Homebrew](https://brew.sh); after installing, quit Corolla from the menu bar and open it again.
+free tools that Corolla finds once they're installed.
+
+**One click:** unzip `Corolla-<version>-macos-extras.zip` from the release and double-click
+**Install Corolla Extras**. It installs [Homebrew](https://brew.sh) if it's missing (asking for
+your Mac password), then FFmpeg, ImageMagick, FontForge, FreeCAD and rar, asks whether you also
+want LibreOffice and Blender (about 1 GB each, they only improve two conversions), and restarts
+Corolla. The first time, macOS may refuse to open it: go to **System Settings > Privacy &
+Security** and choose **Open Anyway**. Running it again is safe.
+
+**By hand,** with Homebrew; after installing, quit Corolla from the menu bar and open it again.
 
 | To get | Install |
 |---|---|
