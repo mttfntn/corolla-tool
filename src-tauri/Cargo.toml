@@ -2,6 +2,9 @@
 name = "corolla"
 version = "0.3.0"
 edition = "2021"
+description = "Ctrl+drag (Cmd+drag on a Mac) files to convert, compress or resize them"
+license = "GPL-3.0-or-later"
+repository = "https://github.com/mttfntn/corolla-tool"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

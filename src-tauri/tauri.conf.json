@@ -35,6 +35,9 @@
   },
   "bundle": {
     "active": true,
+    "publisher": "Matteo Fontana",
+    "copyright": "© Matteo Fontana. GPL-3.0-or-later.",
+    "license": "GPL-3.0-or-later",
     "targets": "all",
     "icon": [
       "icons/32x32.png",

@@ -223,6 +223,22 @@ mod tests {
         assert!(summary(&r).1.contains("1 file already JPG"));
     }
 
+    /// The version is written in three places; a release tag must match all of them.
+    #[test]
+    fn every_file_states_the_same_version() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+        let read = |file: &str| std::fs::read_to_string(root.join(file)).unwrap();
+        let json_version = |file: &str| {
+            let value: serde_json::Value = serde_json::from_str(&read(file)).unwrap();
+            value["version"].as_str().unwrap().to_string()
+        };
+        let cargo = env!("CARGO_PKG_VERSION");
+        assert_eq!(json_version("tauri.conf.json"), cargo, "src-tauri/tauri.conf.json");
+        assert_eq!(json_version("../package.json"), cargo, "package.json");
+        let lock: serde_json::Value = serde_json::from_str(&read("../package-lock.json")).unwrap();
+        assert_eq!(lock["version"].as_str(), Some(cargo), "package-lock.json");
+    }
+
     #[test]
     fn tools_are_described_in_words() {
         let compress = Action::Process {

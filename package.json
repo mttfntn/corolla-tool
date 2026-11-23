@@ -2,6 +2,9 @@
   "name": "corolla",
   "private": true,
   "version": "0.3.0",
+  "description": "Ctrl+drag (Cmd+drag on a Mac) files to convert, compress or resize them",
+  "license": "GPL-3.0-or-later",
+  "repository": "github:mttfntn/corolla-tool",
   "scripts": {
     "dev": "tauri dev",
     "build": "tauri build"
