@@ -54,16 +54,23 @@ fn abuse_odd_file_names_convert_beside_the_source() {
     let tools = tools();
     let dir = scratch("names");
     let folder = dir.0.join("names");
-    let names = [
-        "-y.wav",
-        "-i x.wav",
-        "quote ' and \" and $(touch pwned).wav",
-        "semi;colon & pipe |.wav",
-        "unicode perché 日本 🙂.wav",
-        "trailing dots....wav",
-        &format!("{}.wav", "long".repeat(55)),
+    let mut names = vec![
+        "-y.wav".to_string(),
+        "-i x.wav".to_string(),
+        "quote ' and $(touch pwned) and %PATH%.wav".to_string(),
+        "semi;colon & ampersand.wav".to_string(),
+        "unicode perché 日本 🙂.wav".to_string(),
+        "trailing dots....wav".to_string(),
     ];
-    for name in names {
+    if cfg!(windows) {
+        // Windows forbids " | < > in names, and its 260-character path limit (temp
+        // folder included) is reached before Corolla is involved.
+        names.push(format!("{}.wav", "long".repeat(25)));
+    } else {
+        names.push("double \" quote and | pipe.wav".to_string());
+        names.push(format!("{}.wav", "long".repeat(55)));
+    }
+    for name in &names {
         let source = folder.join(name);
         wav(&tools, &source);
         let output = convert_to(&source, "flac", &tools).unwrap_or_else(|e| panic!("{name}: {e}"));
@@ -76,6 +83,8 @@ fn abuse_odd_file_names_convert_beside_the_source() {
 
 /// A name already at the file system's 255-byte limit can't take a longer
 /// extension: the conversion fails with a message and leaves nothing behind.
+/// Not on Windows, where the 260-character path limit is reached first.
+#[cfg(not(windows))]
 #[test]
 #[ignore]
 fn abuse_name_at_the_length_limit_fails_cleanly() {
