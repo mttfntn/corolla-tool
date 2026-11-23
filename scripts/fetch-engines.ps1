@@ -143,5 +143,40 @@ if (-not (Test-Path "$out\fontforge\bin\fontforge.exe")) {
     }
 }
 
+# License texts, shipped beside the engines (THIRD-PARTY-NOTICES.md lists them all).
+# Most come from the downloads above; Mayo's own and those of the libraries it carries
+# are fetched from their projects, pinned to the versions Mayo 0.10.0 ships.
+$licenses = Join-Path $out "licenses"
+New-Item -ItemType Directory -Force $licenses | Out-Null
+Copy-Item (Join-Path $root "THIRD-PARTY-NOTICES.md"), (Join-Path $root "LICENSE") $licenses
+function Copy-License($folder, $filter, $name) {
+    $dir = Join-Path $cache $folder
+    $found = if (Test-Path $dir) { Get-ChildItem $dir -Recurse -Filter $filter -File | Sort-Object { $_.FullName.Length } | Select-Object -First 1 }
+    if (-not $found) { throw "License missing in build-cache\$folder. Delete that engine from $out and re-run to fetch it again." }
+    Copy-Item $found.FullName (Join-Path $licenses $name)
+}
+Copy-License "7zip" "License.txt" "7-Zip.txt"
+Copy-License "ffmpeg" "LICENSE" "FFmpeg.txt"
+Copy-License "imagemagick" "LICENSE.txt" "ImageMagick.txt"
+Copy-License "pdfium" "LICENSE" "PDFium.txt"
+$pdfiumThirdParty = Join-Path $licenses "PDFium-third-party"
+if (Test-Path $pdfiumThirdParty) { Remove-Item -Recurse -Force $pdfiumThirdParty }
+Copy-Item (Join-Path $cache "pdfium\licenses") $pdfiumThirdParty -Recurse
+Copy-License "assimp" "LICENSE" "Assimp.txt"
+Copy-Item "$out\fontforge\LICENSE.txt" (Join-Path $licenses "FontForge.txt")
+foreach ($text in @(
+        @("https://raw.githubusercontent.com/fougue/mayo/v0.10.0/LICENSE.txt", "Mayo.txt"),
+        @("https://raw.githubusercontent.com/Open-Cascade-SAS/OCCT/V7_9_3/LICENSE_LGPL_21.txt", "OpenCascade-LGPL-2.1.txt"),
+        @("https://raw.githubusercontent.com/Open-Cascade-SAS/OCCT/V7_9_3/OCCT_LGPL_EXCEPTION.txt", "OpenCascade-exception.txt"),
+        @("https://www.gnu.org/licenses/lgpl-3.0.txt", "Qt-LGPL-3.0.txt"),
+        @("https://freeimage.sourceforge.io/freeimage-license.txt", "FreeImage.txt"))) {
+    $target = Join-Path $licenses $text[1]
+    if (-not (Test-Path $target)) {
+        curl.exe -fsSL --retry 3 -o "$target.part" $text[0]
+        if ($LASTEXITCODE -ne 0) { throw "Download failed: $($text[0])" }
+        Move-Item "$target.part" $target
+    }
+}
+
 Write-Host "Engines ready:"
 Get-ChildItem $out -Filter *.exe | ForEach-Object { Write-Host "  $($_.Name)  $([math]::Round($_.Length/1MB,1)) MB" }
