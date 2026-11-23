@@ -103,7 +103,8 @@ Unit tests need `src-tauri/binaries/<os>` to exist (empty is fine): the bundle c
 
 - Only `main`; small commits with messages that say what changed and how it was checked; a fix
   goes in a commit before the tests that check it.
-- Author: Matteo Fontana <matteofontana@mttfntn.com>.
+- Author: Matteo Fontana, with the commit email linked to the GitHub account. End commit
+  messages with the Co-Authored-By line if an assistant helped.
 - Remote: `origin` = https://github.com/mttfntn/corolla-tool (public). The first commit
   (`5af7067`) is the code as it came from the Windows PC: the baseline for comparisons.
 - Never commit `src-tauri/binaries`, `build-cache`, `src-tauri/target`, `node_modules`, or
