@@ -1,6 +1,14 @@
 {
   "bundle": {
-    "targets": ["app", "dmg"],
-    "resources": { "binaries/macos/": "binaries/" }
+    "targets": [
+      "app",
+      "dmg"
+    ],
+    "resources": {
+      "binaries/macos/": "binaries/"
+    },
+    "macOS": {
+      "minimumSystemVersion": "13.0"
+    }
   }
 }

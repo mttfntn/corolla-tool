@@ -49,7 +49,10 @@ if [ ! -x "$out/assimp" ]; then
   curl -fL --retry 3 -o "$cache/assimp-mac.tar.gz" "https://github.com/assimp/assimp/archive/refs/tags/$tag.tar.gz"
   rm -rf "$cache/assimp-mac" && mkdir -p "$cache/assimp-mac"
   tar -xzf "$cache/assimp-mac.tar.gz" -C "$cache/assimp-mac" --strip-components=1
+  # macOS 13 like the bundled PDFium (and the app's minimum); CMake would
+  # otherwise target only the macOS version doing the build.
   cmake -S "$cache/assimp-mac" -B "$cache/assimp-mac/build" -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 \
     -DBUILD_SHARED_LIBS=OFF -DASSIMP_BUILD_ASSIMP_TOOLS=ON -DASSIMP_BUILD_TESTS=OFF \
     -DASSIMP_BUILD_SAMPLES=OFF -DASSIMP_WARNINGS_AS_ERRORS=OFF -DASSIMP_INSTALL=OFF
   cmake --build "$cache/assimp-mac/build" --target assimp_cmd --parallel

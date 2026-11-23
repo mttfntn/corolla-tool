@@ -188,7 +188,7 @@ pub fn fully_encodable(text: &str) -> bool {
         c.is_whitespace() || {
             let mut out = Vec::new();
             push_escaped(&mut out, c);
-            out != [b'?'] || c == '?'
+            out != *b"?" || c == '?'
         }
     })
 }
