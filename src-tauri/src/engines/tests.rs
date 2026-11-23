@@ -354,7 +354,7 @@ fn mark_sideways(jpeg: &Path) {
     let mut marked = data[..2].to_vec();
     marked.extend([0xFF, 0xE1]);
     marked.extend(((tiff.len() + 8) as u16).to_be_bytes());
-    marked.extend(b"Exif  ");
+    marked.extend(b"Exif\0\0");
     marked.extend(tiff);
     marked.extend(&data[2..]);
     std::fs::write(jpeg, marked).unwrap();

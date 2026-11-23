@@ -157,7 +157,7 @@ fn find_blender() -> Option<PathBuf> {
     #[cfg(target_os = "macos")]
     {
         let app = PathBuf::from("/Applications/Blender.app/Contents/MacOS/Blender");
-        return app.is_file().then_some(app);
+        app.is_file().then_some(app)
     }
     #[cfg(not(target_os = "macos"))]
     {
