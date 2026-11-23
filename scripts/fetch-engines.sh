@@ -82,13 +82,19 @@ fi
 # License texts, shipped beside the engines (THIRD-PARTY-NOTICES.md lists them all).
 mkdir -p "$out/licenses"
 cp "$root/THIRD-PARTY-NOTICES.md" "$root/LICENSE" "$out/licenses/"
-copy_license() { # from, name
+copy_license() { # from, name: from the download when it's there, else keep last time's copy
   if [ -f "$1" ]; then cp "$1" "$out/licenses/$2"
-  else echo "License missing: $1. Delete the engine from $out and re-run to fetch it again."; exit 1; fi
+  elif [ ! -f "$out/licenses/$2" ]; then
+    echo "License missing: $1. Delete the engine from $out and re-run to fetch it again."; exit 1
+  fi
 }
 copy_license "$cache/7zip-mac/License.txt" 7-Zip.txt
 copy_license "$cache/pdfium-mac/LICENSE" PDFium.txt
-rm -rf "$out/licenses/PDFium-third-party" && cp -R "$cache/pdfium-mac/licenses" "$out/licenses/PDFium-third-party"
+if [ -d "$cache/pdfium-mac/licenses" ]; then
+  rm -rf "$out/licenses/PDFium-third-party" && cp -R "$cache/pdfium-mac/licenses" "$out/licenses/PDFium-third-party"
+elif [ ! -d "$out/licenses/PDFium-third-party" ]; then
+  echo "PDFium's third-party licenses are missing in $cache/pdfium-mac."; exit 1
+fi
 copy_license "$cache/assimp-mac/LICENSE" Assimp.txt
 
 touch "$out/.keep"

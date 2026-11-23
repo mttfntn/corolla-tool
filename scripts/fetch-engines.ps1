@@ -137,9 +137,16 @@ if (-not (Test-Path "$out\fontforge\bin\fontforge.exe")) {
         New-Item -ItemType Directory -Force "$out\fontforge" | Out-Null
         Get-ChildItem $dir | Where-Object { $_.Name -notlike "unins*" } |
             Copy-Item -Destination "$out\fontforge" -Recurse
+        # The uninstaller only removes FontForge's entry from Windows' app list. It can
+        # hang (it did on GitHub's Windows machines, for over an hour), so it gets two
+        # minutes; after that it's stopped and the build goes on.
         $uninstaller = Get-ChildItem $dir -Filter "unins*.exe" | Select-Object -First 1
         if ($uninstaller) {
-            Start-Process $uninstaller.FullName -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART" -Wait
+            $process = Start-Process $uninstaller.FullName -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART" -PassThru
+            if (-not $process.WaitForExit(120000)) {
+                Write-Host "FontForge's uninstaller didn't finish in 2 minutes; stopping it (its entry may stay in the app list)."
+                Get-Process -Name "unins*", "_unins*" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+            }
         }
     }
     # Only the editor's window needs these; converting from the command line doesn't.
@@ -155,19 +162,24 @@ if (-not (Test-Path "$out\fontforge\bin\fontforge.exe")) {
 $licenses = Join-Path $out "licenses"
 New-Item -ItemType Directory -Force $licenses | Out-Null
 Copy-Item (Join-Path $root "THIRD-PARTY-NOTICES.md"), (Join-Path $root "LICENSE") $licenses
+# From the download in build-cache when it's there; otherwise the copy made last time
+# is kept (CI caches only the engines folder).
 function Copy-License($folder, $filter, $name) {
     $dir = Join-Path $cache $folder
+    $target = Join-Path $licenses $name
     $found = if (Test-Path $dir) { Get-ChildItem $dir -Recurse -Filter $filter -File | Sort-Object { $_.FullName.Length } | Select-Object -First 1 }
-    if (-not $found) { throw "License missing in build-cache\$folder. Delete that engine from $out and re-run to fetch it again." }
-    Copy-Item $found.FullName (Join-Path $licenses $name)
+    if ($found) { Copy-Item $found.FullName $target }
+    elseif (-not (Test-Path $target)) { throw "License missing in build-cache\$folder. Delete that engine from $out and re-run to fetch it again." }
 }
 Copy-License "7zip" "License.txt" "7-Zip.txt"
 Copy-License "ffmpeg" "LICENSE" "FFmpeg.txt"
 Copy-License "imagemagick" "LICENSE.txt" "ImageMagick.txt"
 Copy-License "pdfium" "LICENSE" "PDFium.txt"
 $pdfiumThirdParty = Join-Path $licenses "PDFium-third-party"
-if (Test-Path $pdfiumThirdParty) { Remove-Item -Recurse -Force $pdfiumThirdParty }
-Copy-Item (Join-Path $cache "pdfium\licenses") $pdfiumThirdParty -Recurse
+if (Test-Path (Join-Path $cache "pdfium\licenses")) {
+    if (Test-Path $pdfiumThirdParty) { Remove-Item -Recurse -Force $pdfiumThirdParty }
+    Copy-Item (Join-Path $cache "pdfium\licenses") $pdfiumThirdParty -Recurse
+} elseif (-not (Test-Path $pdfiumThirdParty)) { throw "PDFium's third-party licenses are missing in build-cache\pdfium." }
 Copy-License "assimp" "LICENSE" "Assimp.txt"
 Copy-Item "$out\fontforge\LICENSE.txt" (Join-Path $licenses "FontForge.txt")
 foreach ($text in @(
