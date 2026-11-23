@@ -1,5 +1,5 @@
 //! Ctrl+drag detection. Each OS supplies `sample()`, which reads the left
-//! button, the Ctrl key and the cursor position. The state machine here is
+//! button, the Ctrl key (Cmd on macOS) and the cursor position. The state machine here is
 //! shared, so both platforms behave the same and it can be unit-tested.
 
 #[cfg(target_os = "macos")]

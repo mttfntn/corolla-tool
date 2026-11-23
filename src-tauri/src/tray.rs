@@ -86,7 +86,11 @@ pub fn build(app: &AppHandle, initial: &Settings) -> tauri::Result<()> {
     app.manage(TrayItems { enabled, login, quality: [high, balanced, small] });
 
     let tray = TrayIconBuilder::with_id("main")
-        .tooltip("Corolla: Ctrl+drag files to convert")
+        .tooltip(if cfg!(target_os = "macos") {
+            "Corolla: Cmd+drag files to convert"
+        } else {
+            "Corolla: Ctrl+drag files to convert"
+        })
         .menu(&menu);
     let tray = match app.default_window_icon() {
         Some(icon) => tray.icon(icon.clone()),

@@ -16,6 +16,8 @@ const FAMILIES = [
 const $ = (id) => document.getElementById(id);
 const SVG = "http://www.w3.org/2000/svg";
 
+if (/Mac/.test(navigator.userAgent)) $("gesture-key").textContent = "Cmd";
+
 let settings = null;
 let page = "image";
 

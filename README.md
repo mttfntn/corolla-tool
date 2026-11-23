@@ -1,9 +1,9 @@
 # Corolla
 
-Ctrl+drag files anywhere and a wheel of circles appears at the cursor. Drop on a circle to convert, compress or resize. It handles batches, and the circles depend on the file type.
+Ctrl+drag files (Cmd+drag on a Mac) anywhere and a wheel of circles appears at the cursor. Drop on a circle to convert, compress or resize. It handles batches, and the circles depend on the file type.
 
 - **Windows:** hold Ctrl and drag, or start dragging and then press Ctrl.
-- **macOS:** start dragging, then press Ctrl. Ctrl+click is right-click on a Mac, so holding Ctrl first opens a menu instead of starting a drag.
+- **macOS:** hold Cmd and drag, or start dragging and then press Cmd.
 
 Drop anywhere except a circle to cancel. A grey circle is the format the files already have. While converting, the centre shows the percentage and how many files are done. Results go next to the source file. Originals are never changed and nothing is overwritten: name clashes become `name (1).ext`.
 

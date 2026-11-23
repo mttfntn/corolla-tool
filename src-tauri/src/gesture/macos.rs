@@ -10,7 +10,8 @@ struct CGPoint {
 
 const COMBINED_SESSION_STATE: i32 = 0;
 const LEFT_BUTTON: u32 = 0;
-const FLAG_CONTROL: u64 = 0x0004_0000;
+/// The Command key. Mac uses Cmd+drag, where Windows uses Ctrl+drag.
+const FLAG_COMMAND: u64 = 0x0010_0000;
 
 #[link(name = "CoreGraphics", kind = "framework")]
 extern "C" {
@@ -40,7 +41,7 @@ pub fn sample() -> Sample {
         };
         Sample {
             left: CGEventSourceButtonState(COMBINED_SESSION_STATE, LEFT_BUTTON),
-            ctrl: CGEventSourceFlagsState(COMBINED_SESSION_STATE) & FLAG_CONTROL != 0,
+            ctrl: CGEventSourceFlagsState(COMBINED_SESSION_STATE) & FLAG_COMMAND != 0,
             x: x as i32,
             y: y as i32,
         }
