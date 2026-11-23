@@ -103,7 +103,7 @@ fn main() {
             if let Ok(directory) = app.path().app_log_dir() {
                 logfile::init(directory);
             }
-            logfile::line("started");
+            logfile::line(format!("Corolla {} started", env!("CARGO_PKG_VERSION")));
 
             let settings_path = settings::path_in(&app.path().app_config_dir()?);
             let saved = settings::load(&settings_path);
