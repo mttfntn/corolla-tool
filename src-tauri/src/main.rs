@@ -109,7 +109,10 @@ fn main() {
             let saved = settings::load(&settings_path);
 
             let tools = Arc::new(engines::Tools::locate(&engine_folders(app.handle())));
-            logfile::line(format!("engines: {tools:?}"));
+            // The encoder list runs to hundreds of names: log only how many.
+            let encoders = tools.ffmpeg_encoders.as_ref().map(Vec::len);
+            let listed = engines::Tools { ffmpeg_encoders: None, ..(*tools).clone() };
+            logfile::line(format!("engines: {listed:?}, FFmpeg encoders: {encoders:?}"));
             let quality = Arc::new(engines::QualitySetting::default());
             quality.set(engines::Quality::from_u8(saved.quality));
             app.manage(tools.clone());

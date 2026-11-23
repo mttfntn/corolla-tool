@@ -138,15 +138,67 @@ pub struct Tools {
     pub mayo: Option<PathBuf>,
     pub freecad: Option<PathBuf>,
     pub fontforge: Option<PathBuf>,
+    /// The encoders FFmpeg reports. None if that couldn't be asked: then every
+    /// FFmpeg target is offered, as if it had them all.
+    pub ffmpeg_encoders: Option<Vec<String>>,
 }
 
 const EXE: &str = std::env::consts::EXE_SUFFIX;
 
+/// Homebrew's folders (Apple silicon, Intel). An app opened from the Finder
+/// doesn't get the shell's PATH, so tools installed with Homebrew would
+/// otherwise never be found.
+#[cfg(target_os = "macos")]
+const EXTRA_DIRS: &[&str] = &["/opt/homebrew/bin", "/usr/local/bin"];
+#[cfg(not(target_os = "macos"))]
+const EXTRA_DIRS: &[&str] = &[];
+
 fn on_path(name: &str) -> Option<PathBuf> {
     let file = format!("{name}{EXE}");
-    std::env::split_paths(&std::env::var_os("PATH")?)
+    let path = std::env::var_os("PATH").unwrap_or_default();
+    std::env::split_paths(&path)
+        .chain(EXTRA_DIRS.iter().map(PathBuf::from))
         .map(|dir| dir.join(&file))
         .find(|candidate| candidate.is_file())
+}
+
+/// Asks FFmpeg for its encoders. Builds differ: Homebrew's, for one, has no
+/// Vorbis, WebP or AOM AV1 encoder.
+fn ffmpeg_encoders(ffmpeg: &Path) -> Option<Vec<String>> {
+    let mut command = Command::new(ffmpeg);
+    command.args(["-hide_banner", "-encoders"]).stdin(Stdio::null()).stderr(Stdio::null());
+    hide_console(&mut command);
+    let output = command.output().ok().filter(|o| o.status.success())?;
+    let encoders = parse_encoders(&String::from_utf8_lossy(&output.stdout));
+    (!encoders.is_empty()).then_some(encoders)
+}
+
+/// Lines look like " A....D libmp3lame   libmp3lame MP3 (MPEG audio layer 3)".
+fn parse_encoders(text: &str) -> Vec<String> {
+    text.lines()
+        .filter_map(|line| {
+            let mut words = line.split_whitespace();
+            let flags = words.next()?;
+            let name = words.next()?;
+            let is_entry = flags.len() == 6 && matches!(flags.as_bytes()[0], b'V' | b'A' | b'S') && name != "=";
+            is_entry.then(|| name.to_string())
+        })
+        .collect()
+}
+
+/// The FFmpeg encoders a target needs beyond the ones every build has.
+/// Kept in step with media.rs (audio and video) and images.rs (WebP, AVIF).
+fn encoders_needed(target: &str) -> &'static [&'static str] {
+    match target {
+        "mp3" | "avi" => &["libmp3lame"],
+        "ogg" => &["libvorbis"],
+        "opus" => &["libopus"],
+        "mp4" | "mov" | "mkv" => &["libx264"],
+        "webm" => &["libvpx-vp9", "libopus"],
+        "webp" => &["libwebp"],
+        "avif" => &["libaom-av1"],
+        _ => &[],
+    }
 }
 
 /// Blender installs into a versioned folder and isn't normally on PATH.
@@ -189,8 +241,10 @@ impl Tools {
                 .or_else(|| on_path(name))
         };
         let pdfium_file = if cfg!(target_os = "macos") { "libpdfium.dylib" } else { "pdfium.dll" };
+        let ffmpeg = find("ffmpeg");
         Self {
-            ffmpeg: find("ffmpeg"),
+            ffmpeg_encoders: ffmpeg.as_deref().and_then(ffmpeg_encoders),
+            ffmpeg,
             magick: find("magick"),
             sips: if cfg!(target_os = "macos") { on_path("sips") } else { None },
             sevenzip: find("7z").or_else(|| find("7zz")),
@@ -224,6 +278,19 @@ impl Tools {
     pub fn has_image_tool(&self) -> bool {
         self.magick.is_some() || (self.sips.is_some() && self.ffmpeg.is_some())
     }
+
+    /// Whether FFmpeg is here and has the encoders `target` needs.
+    pub fn ffmpeg_writes(&self, target: &str) -> bool {
+        self.ffmpeg.is_some()
+            && self.ffmpeg_encoders.as_ref().is_none_or(|have| {
+                encoders_needed(target).iter().all(|need| have.iter().any(|name| name == need))
+            })
+    }
+
+    /// Without ImageMagick, FFmpeg writes WebP and AVIF images (images.rs).
+    fn image_target_ok(&self, target: &str) -> bool {
+        self.magick.is_some() || !matches!(target, "webp" | "avif") || self.ffmpeg_writes(target)
+    }
 }
 
 fn family(format: &str) -> Option<&'static str> {
@@ -233,7 +300,7 @@ fn family(format: &str) -> Option<&'static str> {
 /// Whether this machine has what `from` -> `to` needs. Assumes the pair is in the matrix.
 pub fn can_convert(tools: &Tools, from: &str, to: &str) -> bool {
     match family(from) {
-        Some("audio" | "video") => tools.ffmpeg.is_some(),
+        Some("audio" | "video") => tools.ffmpeg_writes(to),
         Some("subtitle") => true,
         Some("text") => true,
         Some("archive") => {
@@ -250,7 +317,7 @@ pub fn can_convert(tools: &Tools, from: &str, to: &str) -> bool {
             (_, "heic") => tools.sips.is_some() && tools.has_image_tool(),
             // Making icons and picking the largest size in one needs ImageMagick.
             ("ico", _) | (_, "ico") => tools.magick.is_some(),
-            _ => tools.has_image_tool(),
+            _ => tools.has_image_tool() && tools.image_target_ok(to),
         },
         _ => false,
     }
@@ -261,7 +328,7 @@ pub fn can_process(tools: &Tools, from: &str, op: &Op) -> bool {
     let compress = matches!(op, Op::Compress { .. });
     match family(from) {
         Some("pdf") => compress,
-        Some("video") => compress && tools.ffmpeg.is_some(),
+        Some("video") => compress && tools.ffmpeg_writes(from),
         // The result has to be written back as HEIC, which only sips can do.
         Some("image") => match from {
             // An icon is several sizes already; resizing or squeezing it makes no sense.
@@ -269,7 +336,7 @@ pub fn can_process(tools: &Tools, from: &str, op: &Op) -> bool {
             // Radiance files have only one kind of compression, always on.
             "hdr" if compress => false,
             "heic" => tools.sips.is_some() && tools.has_image_tool(),
-            _ => tools.has_image_tool(),
+            _ => tools.has_image_tool() && tools.image_target_ok(from),
         },
         _ => false,
     }
@@ -561,3 +628,4 @@ pub fn require_output(path: &Path) -> Result<(), String> {
 mod tests;
 #[cfg(test)]
 mod abuse_tests;
+
