@@ -162,8 +162,12 @@ real synthetic drags; the macOS gesture is only tested by hand.
 
 3. CI tests again on Windows, builds `Corolla-<version>-windows-x64-setup.exe`, checks the
    tag against `package.json`, and publishes the release with the tag's message as notes
-   (about 25 minutes the first time, less once the engines are cached). Re-running it replaces
-   the Windows file instead of failing.
+   (about 25 minutes the first time, less once the engines are cached). The installer goes to
+   the release straight from the build job: the account's artifact storage is too small for a
+   414 MB file. Re-running it replaces the Windows file instead of failing. If a tag's run
+   failed for a reason fixed afterwards in the workflow, run the workflow by hand on `main` with
+   the tag: `gh workflow run tests.yml -f release_tag=v0.3.1`. It builds the tagged code with
+   the current workflow and publishes it the same way.
 4. On a Mac, with the tag checked out: `bash scripts/release-mac.sh`. It fetches the engines,
    runs clippy, the unit tests and the engine tests that need nothing installed, builds and
    checks the DMG, and adds `Corolla-<version>-macos-arm64.dmg` and

@@ -3,8 +3,11 @@
 # macOS side is tested on a Mac before pushing (AGENTS.md).
 # A pushed version tag (vX.Y.Z), or a manual run: the real Windows engines (cached by
 # the fetch script's contents), the full engine suite, and the NSIS installer built and
-# checked; for a tag, also the tag checked against the version and the GitHub release
-# published with the installer. The macOS DMG is built on a Mac by
+# checked; for a tag, also the tag checked against the version and the installer added
+# to the GitHub release straight from that job. No artifacts are stored: the account's
+# artifact storage is small and shared (a 414 MB installer hit its quota). A manual run
+# with "release_tag" builds that tag and publishes it the same way, for when a tag's own
+# run failed for a reason fixed later in the workflow. The macOS DMG is built on a Mac by
 # scripts/release-mac.sh, which adds it to the same release. The macOS job below runs
 # only when started by hand with "macos" ticked.
 name: tests
@@ -20,6 +23,10 @@ on:
         description: "Also test the macOS engines and build the DMG (macOS minutes count 10x)"
         type: boolean
         default: false
+      release_tag:
+        description: "Build this tag (vX.Y.Z) and add its Windows installer to its release"
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -65,8 +72,16 @@ jobs:
     needs: unit
     runs-on: windows-latest
     timeout-minutes: 75
+    permissions:
+      contents: write
+    env:
+      # The tag to build and publish: the pushed tag, or the one asked for by hand.
+      RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || inputs.release_tag }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_tag || github.ref }}
+          fetch-depth: 0
 
       - uses: dtolnay/rust-toolchain@stable
 
@@ -113,19 +128,29 @@ jobs:
         shell: bash
         run: python tools/check_package.py src-tauri/target/release/bundle/nsis/*-setup.exe
 
-      - name: Name the installer for the release
-        if: startsWith(github.ref, 'refs/tags/v')
+      # Straight from this job, so the 414 MB file never goes through artifact storage.
+      # Safe to re-run: if the release exists (also when scripts/release-mac.sh made it
+      # first), its Windows file is replaced and the Mac files are kept.
+      - name: Publish the installer to the release
+        if: env.RELEASE_TAG != ''
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          mkdir dist
-          cp src-tauri/target/release/bundle/nsis/*-setup.exe "dist/Corolla-${GITHUB_REF_NAME#v}-windows-x64-setup.exe"
-
-      - uses: actions/upload-artifact@v4
-        if: startsWith(github.ref, 'refs/tags/v')
-        with:
-          name: windows
-          path: dist/*
-          retention-days: 1
+          set -euo pipefail
+          git fetch --force origin "+refs/tags/${RELEASE_TAG}:refs/tags/${RELEASE_TAG}"
+          VER=$(python -c "import json;print(json.load(open('package.json'))['version'])")
+          [ "${RELEASE_TAG}" = "v$VER" ] || { echo "Tag ${RELEASE_TAG} does not match version $VER"; exit 1; }
+          mkdir -p dist
+          cp src-tauri/target/release/bundle/nsis/*-setup.exe "dist/Corolla-${VER}-windows-x64-setup.exe"
+          if ! gh release view "${RELEASE_TAG}" > /dev/null 2>&1; then
+            git tag -l --format='%(contents)' "${RELEASE_TAG}" > notes.md
+            [ -s notes.md ] || echo "Corolla ${RELEASE_TAG}" > notes.md
+            gh release create "${RELEASE_TAG}" --verify-tag --title "Corolla ${RELEASE_TAG}" --notes-file notes.md \
+              || gh release view "${RELEASE_TAG}" > /dev/null
+          fi
+          gh release upload "${RELEASE_TAG}" "dist/Corolla-${VER}-windows-x64-setup.exe" --clobber
+          gh release view "${RELEASE_TAG}" --json assets --jq '.assets[] | "\(.name)  \(.size) bytes"'
 
   macos:
     name: engines and DMG (macOS)
@@ -182,51 +207,3 @@ jobs:
 
       - name: Check the DMG
         run: python3 tools/check_package.py src-tauri/target/release/bundle/dmg/*.dmg
-
-  release:
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: windows
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      # actions/checkout leaves the tag lightweight; fetch it for its annotated message.
-      - name: Fetch the tag itself (annotated message)
-        run: git fetch --force origin "+${GITHUB_REF}:${GITHUB_REF}"
-
-      - name: Check the tag matches the version
-        run: |
-          set -euo pipefail
-          VER=$(python3 -c "import json;print(json.load(open('package.json'))['version'])")
-          [ "${GITHUB_REF_NAME}" = "v$VER" ] || { echo "Tag ${GITHUB_REF_NAME} does not match version $VER"; exit 1; }
-          # The unit tests already checked that every other file states the same version.
-
-      - uses: actions/download-artifact@v4
-        with:
-          path: dist
-          merge-multiple: true
-
-      # Safe to re-run: if the release already exists (also when scripts/release-mac.sh
-      # made it first), its Windows file and notes are replaced and the Mac files kept.
-      - name: Publish the GitHub release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          ls -la dist
-          git tag -l --format='%(contents)' "${GITHUB_REF_NAME}" > notes.md
-          [ -s notes.md ] || echo "Corolla ${GITHUB_REF_NAME}" > notes.md
-          cat notes.md
-          if gh release view "${GITHUB_REF_NAME}" > /dev/null 2>&1; then
-            echo "Release exists: updating its files and notes"
-            gh release upload "${GITHUB_REF_NAME}" dist/* --clobber
-            gh release edit "${GITHUB_REF_NAME}" --notes-file notes.md
-            exit 0
-          fi
-          gh release create "${GITHUB_REF_NAME}" dist/* \
-            --title "Corolla ${GITHUB_REF_NAME}" --notes-file notes.md --verify-tag

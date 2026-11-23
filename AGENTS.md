@@ -104,7 +104,10 @@ Unit tests need `src-tauri/binaries/<os>` to exist (empty is fine): the bundle c
 2. On a Mac, run the unit tests and clippy (CI tests only Windows on push); push to `main`;
    CI green (`unit`).
 3. `git tag -a vX.Y.Z -m "Corolla X.Y.Z" -m "- notes"` and `git push origin vX.Y.Z`.
-4. CI builds and publishes `Corolla-X.Y.Z-windows-x64-setup.exe` (jobs `windows`, `release`).
+4. CI builds `Corolla-X.Y.Z-windows-x64-setup.exe` and adds it to the release from the
+   `windows` job itself (no artifacts: the account's artifact quota is too small). If a tag's
+   run failed for a reason fixed later in the workflow, run the workflow by hand on `main` with
+   `release_tag: vX.Y.Z` (`gh workflow run tests.yml -f release_tag=vX.Y.Z`).
 5. On a Mac at the tag: `bash scripts/release-mac.sh` adds `Corolla-X.Y.Z-macos-arm64.dmg`
    and `Corolla-X.Y.Z-macos-extras.zip`. Either side may create the release first.
 6. Update the static release badge in the README (private repo). Download the files and run
